@@ -1,0 +1,15 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    fast_jsonparser (0.6.0)
+    jwt (2.7.1)
+
+PLATFORMS
+  arm64-darwin-22
+
+DEPENDENCIES
+  fast_jsonparser
+  jwt
+
+BUNDLED WITH
+   2.4.14
