@@ -1,4 +1,4 @@
-require_relative "client"
+require_relative "snowflake_client"
 
 client = SnowflakeClient.new("https://oza47907.us-east-1.snowflakecomputing.com",
                              "private_key.pem",

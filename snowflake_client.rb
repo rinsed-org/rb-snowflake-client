@@ -5,8 +5,21 @@ require "net/http"
 require "uri"
 require 'securerandom'
 
-# TODO: double check that net/http is actually using compression like it should be
-# TODO: investigate if streaming the result would be faster, especially if it can be streamed to the parser and yielded to the caller
+# docs for this: https://docs.snowflake.com/en/developer-guide/sql-api/authenticating
+
+# to generate key:
+# $ openssl genpkey -algorithm RSA -out private_key.pem -pkeyopt rsa_keygen_bits:2048
+# jwt wants pem format
+# $ openssl rsa -pubout -in private_key.pem -out public_key.pem
+
+# to test that auth actually works:
+# snowsql -a gblarlo-oza47907 -u SNOWFLAKE_CLIENT_TEST --private-key-path ./private_key.pem -o log_level=DEBUG
+# (brew install --cask snowflake-snowsql)
+
+# TODOs
+# double check that net/http is actually using compression like it should
+# support the partitioned responses
+# investigate if streaming the result would be faster, especially if it can be streamed to the parser
 
 class SnowflakeClient
   JWT_TOKEN_TTL = 3600 # seconds, this is the max supported by snowflake
@@ -73,6 +86,8 @@ class SnowflakeClient
       response
     end
 
+    # TODO: rather than pull this all back into memory, it would be better to
+    # yield results as we go
     def get_all_response_data(response)
       json_body = FastJsonparser.parse(response.body)
       statementHandle = json_body[:statementHandle]
