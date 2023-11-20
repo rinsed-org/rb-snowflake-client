@@ -31,7 +31,7 @@ class SnowflakeClient
       response = request_with_auth_and_headers(http,
                                                Net::HTTP::Post,
                                                "/api/v2/statements?requestId=#{SecureRandom.uuid}",
-                                               { "statement" => query }.to_json)
+                                               { "statement" => query, "warehouse" => "WEB_TEST_WH" }.to_json)
       get_all_response_data(http, response)
     end
   end
