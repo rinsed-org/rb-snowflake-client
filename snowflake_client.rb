@@ -1,11 +1,11 @@
-require "connection_pool"
 require "concurrent"
-require "fast_jsonparser" # claims to be 150% faster than ruby JSON and 40% faster than OJ
+require "connection_pool"
 require "json"
 require "jwt"
 require "net/http"
+require "oj"
+require "securerandom"
 require "uri"
-require 'securerandom'
 
 # TODO: double check that net/http is actually using compression like it should be
 # TODO: investigate if streaming the result would be faster, especially if it can be streamed to the parser and yielded to the caller
@@ -105,11 +105,11 @@ class SnowflakeClient
     end
 
     def get_all_response_data(response)
-      json_body = FastJsonparser.parse(response.body)
-      statement_handle = json_body[:statementHandle]
-      partitions = json_body[:resultSetMetaData][:partitionInfo]
+      json_body = Oj.load(response.body, oj_options)
+      statement_handle = json_body["statementHandle"]
+      partitions = json_body["resultSetMetaData"]["partitionInfo"]
       data = Concurrent::Array.new(partitions.size)
-      data[0] = json_body[:data]
+      data[0] = json_body["data"]
 
       num_threads = number_of_threads_to_use(partitions.size)
       puts "PARTITION COUNT: #{partitions.size} THREADS: #{num_threads}"
@@ -148,14 +148,18 @@ class SnowflakeClient
       end
 
       partition_json = nil
-      bm = Benchmark.measure { partition_json = FastJsonparser.parse(partition_response.body) }
+      bm = Benchmark.measure { partition_json = Oj.load(partition_response.body, oj_options) }
       puts "JSON parsing took: #{bm.real}"
-      partition_data = partition_json[:data]
+      partition_data = partition_json["data"]
 
       partition_data
     end
 
     def number_of_threads_to_use(partition_count)
       [[1, (partition_count / THREAD_SCALE_FACTOR.to_f).ceil].max, MAX_THREADS].min
+    end
+
+    def oj_options
+      { :bigdecimal_load => :bigdecimal }
     end
 end

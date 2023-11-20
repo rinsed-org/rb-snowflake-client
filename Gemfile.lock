@@ -5,6 +5,7 @@ GEM
     connection_pool (2.4.1)
     fast_jsonparser (0.6.0)
     jwt (2.7.1)
+    oj (3.16.1)
 
 PLATFORMS
   arm64-darwin-22
@@ -14,6 +15,7 @@ DEPENDENCIES
   connection_pool
   fast_jsonparser
   jwt
+  oj
 
 BUNDLED WITH
    2.4.14
