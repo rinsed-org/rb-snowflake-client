@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "concurrent"
 require "connection_pool"
 require "json"
@@ -6,6 +8,8 @@ require "net/http"
 require "oj"
 require "securerandom"
 require "uri"
+
+require_relative "result_set"
 
 # TODO: double check that net/http is actually using compression like it should be
 # TODO: investigate if streaming the result would be faster, especially if it can be streamed to the parser and yielded to the caller
@@ -108,7 +112,7 @@ class SnowflakeClient
       json_body = Oj.load(response.body, oj_options)
       statement_handle = json_body["statementHandle"]
       partitions = json_body["resultSetMetaData"]["partitionInfo"]
-      data = Concurrent::Array.new(partitions.size)
+      data = ResultSet.new(partitions.size)
       data[0] = json_body["data"]
 
       num_threads = number_of_threads_to_use(partitions.size)

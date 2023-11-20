@@ -20,7 +20,7 @@ size = 1_000
   SELECT * FROM FIVETRAN_DATABASE.RINSED_WEB_PRODUCTION_MAMMOTH.EVENTS limit #{size};
   SQL
   end
-  puts "Querying with #{size}; took #{bm.real} actual size #{data.map(&:size).sum}"
+  puts "Querying with #{size}; took #{bm.real} actual size #{data.size}"
   puts
   puts
   size = size * 2
