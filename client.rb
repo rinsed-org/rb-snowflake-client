@@ -24,13 +24,27 @@ class SnowflakeClient
   end
 
   def query(query)
-    response = request_with_auth_and_headers(Net::HTTP::Post,
-                                             "/api/v2/statements?requestId=#{SecureRandom.uuid}",
-                                             { "statement" => query }.to_json)
-    get_all_response_data(response)
+
+    # use a persistent connection
+    Net::HTTP.start(hostname, port, :use_ssl => uri.scheme == "https") do |http|
+
+      response = request_with_auth_and_headers(http,
+                                               Net::HTTP::Post,
+                                               "/api/v2/statements?requestId=#{SecureRandom.uuid}",
+                                               { "statement" => query }.to_json)
+      get_all_response_data(http, response)
+    end
   end
 
   private
+    def hostname
+      URI.parse(@base_uri).hostname
+    end
+
+    def port
+      URI.parse(@base_uri).port
+    end
+
     def jwt_token
       return @token unless jwt_token_expired?
 
@@ -57,7 +71,7 @@ class SnowflakeClient
       raise "Bad response! Got code: #{response.code}, w/ message #{response.body}" unless response.code == "200"
     end
 
-    def request_with_auth_and_headers(request_class, path, body=nil)
+    def request_with_auth_and_headers(http, request_class, path, body=nil)
       uri = URI.parse("#{@base_uri}#{path}")
       request = request_class.new(uri)
       request["Content-Type"] = "application/json"
@@ -66,14 +80,12 @@ class SnowflakeClient
       request["X-Snowflake-Authorization-Token-Type"] = "KEYPAIR_JWT"
       request.body = body unless body.nil?
 
-      response = Net::HTTP.start(uri.hostname, uri.port, :use_ssl => uri.scheme == "https") do |http|
-        http.request(request)
-      end
+      response = http.request(request)
       handle_errors(response)
       response
     end
 
-    def get_all_response_data(response)
+    def get_all_response_data(http, response)
       json_body = FastJsonparser.parse(response.body)
       statementHandle = json_body[:statementHandle]
       partitions = json_body[:resultSetMetaData][:partitionInfo]
@@ -83,11 +95,14 @@ class SnowflakeClient
 
         expected_rows = partition[:rowCount]
         partition_response = request_with_auth_and_headers(
-          Net::HTTP::Get, "/api/v2/statements/#{statementHandle}?partition=#{index}&requestId=#{SecureRandom.uuid}",
+          http,
+          Net::HTTP::Get,
+          "/api/v2/statements/#{statementHandle}?partition=#{index}&requestId=#{SecureRandom.uuid}",
         )
 
         parition_json = FastJsonparser.parse(partition_response.body)
         partition_data = parition_json[:data]
+
 
         raise "mismatched data size!" if expected_rows != partition_data.size
         data.concat partition_data
