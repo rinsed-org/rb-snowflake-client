@@ -26,7 +26,7 @@ class SnowflakeClient
   def query(query)
 
     # use a persistent connection
-    Net::HTTP.start(hostname, port, :use_ssl => uri.scheme == "https") do |http|
+    Net::HTTP.start(hostname, port, :use_ssl => true) do |http|
 
       response = request_with_auth_and_headers(http,
                                                Net::HTTP::Post,

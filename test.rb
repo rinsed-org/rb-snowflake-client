@@ -9,7 +9,7 @@ client = SnowflakeClient.new("https://oza47907.us-east-1.snowflakecomputing.com"
                              "SNOWFLAKE_CLIENT_TEST",
                              "SHA256:pbfmeTQ2+MestU2J9dXjGXTjtvZprYfHxzZzqqcIhFc=")
 
-size = 1000
+size = 1000000
 Benchmark.bm do |bm|
   bm.report do
     data = client.query <<-SQL
