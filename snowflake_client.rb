@@ -5,21 +5,8 @@ require "net/http"
 require "uri"
 require 'securerandom'
 
-# docs for this: https://docs.snowflake.com/en/developer-guide/sql-api/authenticating
-
-# to generate key:
-# $ openssl genpkey -algorithm RSA -out private_key.pem -pkeyopt rsa_keygen_bits:2048
-# jwt wants pem format
-# $ openssl rsa -pubout -in private_key.pem -out public_key.pem
-
-# to test that auth actually works:
-# snowsql -a gblarlo-oza47907 -u SNOWFLAKE_CLIENT_TEST --private-key-path ./private_key.pem -o log_level=DEBUG
-# (brew install --cask snowflake-snowsql)
-
-# TODOs
-# double check that net/http is actually using compression like it should
-# support the partitioned responses
-# investigate if streaming the result would be faster, especially if it can be streamed to the parser
+# TODO: double check that net/http is actually using compression like it should be
+# TODO: investigate if streaming the result would be faster, especially if it can be streamed to the parser and yielded to the caller
 
 class SnowflakeClient
   JWT_TOKEN_TTL = 3600 # seconds, this is the max supported by snowflake
@@ -37,13 +24,27 @@ class SnowflakeClient
   end
 
   def query(query)
-    response = request_with_auth_and_headers(Net::HTTP::Post,
-                                             "/api/v2/statements?requestId=#{SecureRandom.uuid}",
-                                             { "statement" => query }.to_json)
-    get_all_response_data(response)
+
+    # use a persistent connection
+    Net::HTTP.start(hostname, port, :use_ssl => uri.scheme == "https") do |http|
+
+      response = request_with_auth_and_headers(http,
+                                               Net::HTTP::Post,
+                                               "/api/v2/statements?requestId=#{SecureRandom.uuid}",
+                                               { "statement" => query, "warehouse" => "WEB_TEST_WH" }.to_json)
+      get_all_response_data(http, response)
+    end
   end
 
   private
+    def hostname
+      URI.parse(@base_uri).hostname
+    end
+
+    def port
+      URI.parse(@base_uri).port
+    end
+
     def jwt_token
       return @token unless jwt_token_expired?
 
@@ -70,7 +71,7 @@ class SnowflakeClient
       raise "Bad response! Got code: #{response.code}, w/ message #{response.body}" unless response.code == "200"
     end
 
-    def request_with_auth_and_headers(request_class, path, body=nil)
+    def request_with_auth_and_headers(http, request_class, path, body=nil)
       uri = URI.parse("#{@base_uri}#{path}")
       request = request_class.new(uri)
       request["Content-Type"] = "application/json"
@@ -79,16 +80,12 @@ class SnowflakeClient
       request["X-Snowflake-Authorization-Token-Type"] = "KEYPAIR_JWT"
       request.body = body unless body.nil?
 
-      response = Net::HTTP.start(uri.hostname, uri.port, :use_ssl => uri.scheme == "https") do |http|
-        http.request(request)
-      end
+      response = http.request(request)
       handle_errors(response)
       response
     end
 
-    # TODO: rather than pull this all back into memory, it would be better to
-    # yield results as we go
-    def get_all_response_data(response)
+    def get_all_response_data(http, response)
       json_body = FastJsonparser.parse(response.body)
       statementHandle = json_body[:statementHandle]
       partitions = json_body[:resultSetMetaData][:partitionInfo]
@@ -98,11 +95,14 @@ class SnowflakeClient
 
         expected_rows = partition[:rowCount]
         partition_response = request_with_auth_and_headers(
-          Net::HTTP::Get, "/api/v2/statements/#{statementHandle}?partition=#{index}&requestId=#{SecureRandom.uuid}",
+          http,
+          Net::HTTP::Get,
+          "/api/v2/statements/#{statementHandle}?partition=#{index}&requestId=#{SecureRandom.uuid}",
         )
 
         parition_json = FastJsonparser.parse(partition_response.body)
         partition_data = parition_json[:data]
+
 
         raise "mismatched data size!" if expected_rows != partition_data.size
         data.concat partition_data
