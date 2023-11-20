@@ -2,5 +2,7 @@
 
 source "https://rubygems.org"
 
-gem "fast_jsonparser"
+gem "concurrent-ruby"
+gem "connection_pool"
 gem "jwt"
+gem "oj"
