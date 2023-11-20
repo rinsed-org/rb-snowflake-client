@@ -13,8 +13,8 @@ require 'securerandom'
 class SnowflakeClient
   JWT_TOKEN_TTL = 3600 # seconds, this is the max supported by snowflake
   CONNECTION_TIMEOUT = 5 # seconds
-  MAX_CONNECTIONS = 16
-  MAX_THREADS = 16
+  MAX_CONNECTIONS = 8
+  MAX_THREADS = 8
   THREAD_SCALE_FACTOR = 4 # parition count factor for number of threads (i.e. 2 == once we have 4 partitions, spin up a second thread)
 
   def initialize(uri, private_key_path, organization, account, user, public_key_fingerprint)
