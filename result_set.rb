@@ -2,13 +2,17 @@
 
 require "concurrent"
 
+require_relative "indifferent_case_insensitive_hash"
+require_relative "row_facade"
+
 class ResultSet
   include Enumerable
 
   attr_reader :data
 
-  def initialize(partition_count)
+  def initialize(partition_count, row_type_data)
     @data = Concurrent::Array.new(partition_count)
+    extract_row_metadata(row_type_data)
   end
 
   def []=(index, value)
@@ -20,7 +24,7 @@ class ResultSet
 
     data.each do |partition|
       partition.each do |row|
-        yield row
+        yield wrap_row(row)
       end
     end
   end
@@ -28,4 +32,28 @@ class ResultSet
   def size
     data.map(&:size).sum
   end
+
+  def first
+    wrap_row(data.first.first)
+  end
+
+  def last
+    wrap_row(data.last.last)
+  end
+
+  private
+    def wrap_row(row)
+      RowFacade.new(@row_types, @column_to_index, row)
+    end
+
+    def extract_row_metadata(row_type_data)
+      @row_types = []
+      @column_to_index = IndifferentCaseInsensitiveHash.new
+
+      row_type_data.each_with_index do |type_data, index|
+        @row_types[index] = type_data["type"].downcase.to_sym
+        @column_to_index[type_data["name"]] = index
+      end
+    end
+
 end

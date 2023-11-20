@@ -3,7 +3,6 @@ GEM
   specs:
     concurrent-ruby (1.2.2)
     connection_pool (2.4.1)
-    fast_jsonparser (0.6.0)
     jwt (2.7.1)
     oj (3.16.1)
 
@@ -13,7 +12,6 @@ PLATFORMS
 DEPENDENCIES
   concurrent-ruby
   connection_pool
-  fast_jsonparser
   jwt
   oj
 

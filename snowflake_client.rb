@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "benchmark"
 require "concurrent"
 require "connection_pool"
 require "json"
@@ -12,8 +13,6 @@ require "uri"
 require_relative "result_set"
 
 # TODO: double check that net/http is actually using compression like it should be
-# TODO: investigate if streaming the result would be faster, especially if it can be streamed to the parser and yielded to the caller
-
 class SnowflakeClient
   JWT_TOKEN_TTL = 3600 # seconds, this is the max supported by snowflake
   CONNECTION_TIMEOUT = 5 # seconds
@@ -21,6 +20,7 @@ class SnowflakeClient
   MAX_THREADS = 8
   THREAD_SCALE_FACTOR = 4 # parition count factor for number of threads (i.e. 2 == once we have 4 partitions, spin up a second thread)
 
+  # TODO: parameterize warehouse
   def initialize(uri, private_key_path, organization, account, user, public_key_fingerprint)
     @base_uri = uri
     @private_key_path = private_key_path
@@ -37,10 +37,12 @@ class SnowflakeClient
   def query(query)
     response = nil
     connection_pool.with do |connection|
-      response = request_with_auth_and_headers(connection,
-                                               Net::HTTP::Post,
-                                               "/api/v2/statements?requestId=#{SecureRandom.uuid}",
-                                               { "statement" => query, "warehouse" => "WEB_TEST_WH" }.to_json)
+      response = request_with_auth_and_headers(
+        connection,
+        Net::HTTP::Post,
+        "/api/v2/statements?requestId=#{SecureRandom.uuid}",
+        { "statement" => query, "warehouse" => "WEB_TEST_WH" }.to_json
+      )
     end
     handle_errors(response)
     get_all_response_data(response)
@@ -112,7 +114,8 @@ class SnowflakeClient
       json_body = Oj.load(response.body, oj_options)
       statement_handle = json_body["statementHandle"]
       partitions = json_body["resultSetMetaData"]["partitionInfo"]
-      data = ResultSet.new(partitions.size)
+      data = ResultSet.new(partitions.size, json_body["resultSetMetaData"]["rowType"])
+      #data = Concurrent::Array.new(partitions.size)
       data[0] = json_body["data"]
 
       num_threads = number_of_threads_to_use(partitions.size)
