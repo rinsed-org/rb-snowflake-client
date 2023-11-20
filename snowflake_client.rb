@@ -80,7 +80,9 @@ class SnowflakeClient
       request["X-Snowflake-Authorization-Token-Type"] = "KEYPAIR_JWT"
       request.body = body unless body.nil?
 
-      response = http.request(request)
+      response = nil
+      bm = Benchmark.measure { response = http.request(request) }
+      puts "HTTP Request time: #{bm.real}"
       handle_errors(response)
       response
     end
@@ -100,7 +102,9 @@ class SnowflakeClient
           "/api/v2/statements/#{statementHandle}?partition=#{index}&requestId=#{SecureRandom.uuid}",
         )
 
-        parition_json = FastJsonparser.parse(partition_response.body)
+        parition_json = nil
+        bm = Benchmark.measure { parition_json = FastJsonparser.parse(partition_response.body) }
+        puts "JSON parsing took: #{bm.real}"
         partition_data = parition_json[:data]
 
 
