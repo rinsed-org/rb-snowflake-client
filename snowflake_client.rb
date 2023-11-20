@@ -12,10 +12,10 @@ require 'securerandom'
 
 class SnowflakeClient
   JWT_TOKEN_TTL = 3600 # seconds, this is the max supported by snowflake
-  MAX_CONNECTIONS = 8
   CONNECTION_TIMEOUT = 5 # seconds
-  MAX_THREADS = 12
-  THREAD_SCALE_UP = 4 # parition count factor for number of threads (i.e. 2 == once we have 4 partitions, spin up a second thread)
+  MAX_CONNECTIONS = 16
+  MAX_THREADS = 16
+  THREAD_SCALE_FACTOR = 4 # parition count factor for number of threads (i.e. 2 == once we have 4 partitions, spin up a second thread)
 
   def initialize(uri, private_key_path, organization, account, user, public_key_fingerprint)
     @base_uri = uri
@@ -60,7 +60,6 @@ class SnowflakeClient
       @port ||= URI.parse(@base_uri).port
     end
 
-    # TODO: make this threadsafe
     def jwt_token
       return @token unless jwt_token_expired?
 
@@ -157,6 +156,6 @@ class SnowflakeClient
     end
 
     def number_of_threads_to_use(partition_count)
-      [[1, (partition_count / THREAD_SCALE_UP.to_f).ceil].max, MAX_THREADS].min
+      [[1, (partition_count / THREAD_SCALE_FACTOR.to_f).ceil].max, MAX_THREADS].min
     end
 end

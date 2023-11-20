@@ -12,7 +12,7 @@ def new_client
 end
 
 size = 1_000
-10.times do
+11.times do
   data = nil
   bm =
   Benchmark.measure do
