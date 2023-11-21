@@ -185,16 +185,10 @@ RSpec.describe SnowflakeClient do
         let(:limit) { 150_000 }
         it "should work" do
           t = []
-          client = described_class.new
-          client.connect(
-            account: ENV["SNOWFLAKE_ACCOUNT"],
-            warehouse: ENV["SNOWFLAKE_WAREHOUSE"],
-            user: ENV["SNOWFLAKE_USER"],
-            password: ENV["SNOWFLAKE_PASSWORD"],
-          )
+          client = described_class.connect
           10.times do |idx|
             t << Thread.new do
-              result = client.fetch(query)
+              result = client.query(query)
               rows = result.get_all_rows
               expect(rows.length).to eq 150000
               expect((-50000...50000)).to include(rows[0]["id"].to_i)
