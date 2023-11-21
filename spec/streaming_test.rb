@@ -1,14 +1,14 @@
 require "benchmark"
 require "rb_snowflake_client"
 
-
 def new_client
-  SnowflakeClient.new("https://oza47907.us-east-1.snowflakecomputing.com",
-                      "private_key.pem",
-                      "GBLARLO",
-                      "OZA47907",
-                      "SNOWFLAKE_CLIENT_TEST",
-                      "SHA256:pbfmeTQ2+MestU2J9dXjGXTjtvZprYfHxzZzqqcIhFc=")
+  RubySnowflake::Client.new(
+    "https://oza47907.us-east-1.snowflakecomputing.com",
+    "private_key.pem",
+    "GBLARLO",
+    "OZA47907",
+    "SNOWFLAKE_CLIENT_TEST",
+    "SHA256:pbfmeTQ2+MestU2J9dXjGXTjtvZprYfHxzZzqqcIhFc=")
 end
 
 size = 1_000
@@ -26,7 +26,7 @@ size = 1_000
   end
 
   # you can now data.first or data.each and get rows that act like hashes
-  # RowFacade does the parsing at access time right now
+  # Row does the parsing at access time right now
   # data.first.tap do |row|
   #   puts row
   #   puts "#{row[:id]}, #{row[:code]}, #{row[:payload]}, #{row[:updated_at]}"

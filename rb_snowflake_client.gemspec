@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
-require_relative "lib/rb_snowflake_client/version"
+require_relative "lib/ruby_snowflake/version"
 
 Gem::Specification.new do |s|
   s.name    = "rb_snowflake_client"
-  s.version = RbSnowflakeClient::VERSION
+  s.version = RubySnowflake::VERSION
   s.summary = "Snowflake connector for Ruby"
   s.author  = "Rinsed"
   s.email   = ["reid@rinsed.co", "alex@rinsed.co"]

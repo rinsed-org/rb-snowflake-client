@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "rb_snowflake_client/snowflake_client"
+require "ruby_snowflake/client"
 
-module RbSnowflakeClient
+module RubySnowflake
 end
