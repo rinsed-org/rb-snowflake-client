@@ -12,6 +12,9 @@ require "uri"
 
 require_relative "result"
 require_relative "streaming_result"
+require_relative "client/streaming_result_strategy"
+require_relative "client/threaded_in_memory_strategy"
+require_relative "client/single_thread_in_memory_strategy"
 
 module RubySnowflake
   class Error < StandardError
@@ -146,14 +149,16 @@ module RubySnowflake
 
       def retreive_result_set(response, streaming)
         json_body = Oj.load(response.body, oj_options)
+        statement_handle = json_body["statementHandle"]
         num_threads = number_of_threads_to_use(json_body["resultSetMetaData"]["partitionInfo"].size)
+        retreive_proc = ->(index) { retreive_partition_data(statement_handle, index) }
 
         if streaming
-          streaming_result_set(json_body)
+          StreamingResultStrategy.result(json_body, retreive_proc)
         elsif num_threads == 1
-          single_thread_in_memory_result_set(json_body)
+          SingleThreadInMemoryStrategy.result(json_body, retreive_proc)
         else
-          threaded_in_memory_result_set(json_body, num_threads)
+          ThreadedInMemoryStrategy.result(json_body, retreive_proc, num_threads)
         end
       end
 
@@ -185,60 +190,6 @@ module RubySnowflake
 
       def oj_options
         { :bigdecimal_load => :bigdecimal }
-      end
-
-      def single_thread_in_memory_result_set(statement_json_body)
-        statement_handle = statement_json_body["statementHandle"]
-        partitions = statement_json_body["resultSetMetaData"]["partitionInfo"]
-        result_set = Result.new(partitions.size, statement_json_body["resultSetMetaData"]["rowType"])
-        result_set[0] = statement_json_body["data"]
-
-        partitions.each_with_index do |partition, index|
-          next if index == 0 # already have the first partition
-          result_set[index] = retreive_partition_data(statement_handle, index)
-        end
-
-        result_set
-      end
-
-      def threaded_in_memory_result_set(statement_json_body, num_threads)
-        statement_handle = statement_json_body["statementHandle"]
-        partitions = statement_json_body["resultSetMetaData"]["partitionInfo"]
-        result_set = Result.new(partitions.size, statement_json_body["resultSetMetaData"]["rowType"])
-        result_set[0] = statement_json_body["data"]
-
-        thread_pool = Concurrent::FixedThreadPool.new(num_threads)
-        futures = []
-        partitions.each_with_index do |partition, index|
-          next if index == 0 # already have the first partition
-          futures << Concurrent::Future.execute(executor: thread_pool) do
-            [index, retreive_partition_data(statement_handle, index)]
-          end
-        end
-        futures.each do |future|
-          # TODO: futures can get rejected, handle this error case
-          index, partition_data = future.value
-          result_set[index] = partition_data
-        end
-        result_set
-      end
-
-      def streaming_result_set(statement_json_body)
-        statement_handle = statement_json_body["statementHandle"]
-        partitions = statement_json_body["resultSetMetaData"]["partitionInfo"]
-
-        retreive_proc = ->(index) do
-          retreive_partition_data(statement_handle, index)
-        end
-
-        result_set = StreamingResult.new(
-          partitions.size,
-          statement_json_body["resultSetMetaData"]["rowType"],
-          retreive_proc
-        )
-        result_set[0] = statement_json_body["data"]
-
-        result_set
       end
   end
 end
