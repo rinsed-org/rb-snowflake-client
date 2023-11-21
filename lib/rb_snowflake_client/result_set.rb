@@ -16,7 +16,15 @@ class ResultSet
   end
 
   def []=(index, value)
+    begin
     data[index] = value
+    rescue Exception => ex
+      binding.pry
+    end
+  end
+
+  def get_all_rows
+    data.map { |part| part.map { |r| wrap_row(r).to_h } }.flatten
   end
 
   def each
@@ -32,6 +40,8 @@ class ResultSet
   def size
     data.map(&:size).sum
   end
+
+  alias length size
 
   def first
     wrap_row(data.first.first)
