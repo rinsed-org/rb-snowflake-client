@@ -12,6 +12,18 @@ require "uri"
 
 require_relative "result_set"
 
+class Snowflake
+  class Error < StandardError
+    # This will get pulled through to Sentry, see:
+    # https://github.com/getsentry/sentry-ruby/blob/11ecd254c0d2cae2b327f0348074e849095aa32d/sentry-ruby/lib/sentry/error_event.rb#L31-L33
+    attr_reader :sentry_context
+
+    def initialize(details)
+      @sentry_context = details
+    end
+  end
+end
+
 # TODO: double check that net/http is actually using compression like it should be
 class SnowflakeClient
   JWT_TOKEN_TTL = 3600 # seconds, this is the max supported by snowflake
@@ -19,6 +31,17 @@ class SnowflakeClient
   MAX_CONNECTIONS = 8
   MAX_THREADS = 8
   THREAD_SCALE_FACTOR = 4 # parition count factor for number of threads (i.e. 2 == once we have 4 partitions, spin up a second thread)
+
+  def self.connect
+    new(
+      ENV["SNOWFLAKE_URI"],
+      ENV["SNOWFLAKE_PRIVATE_KEY_PATH"],
+      ENV["SNOWFLAKE_ORGANIZATION"],
+      ENV["SNOWFLAKE_ACCOUNT"],
+      ENV["SNOWFLAKE_USER"],
+      ENV["SNOWFLAKE_PUBLIC_KEY_FINGERPRINT"],
+    )
+  end
 
   # TODO: parameterize warehouse
   def initialize(uri, private_key_path, organization, account, user, public_key_fingerprint)
@@ -99,7 +122,10 @@ class SnowflakeClient
     end
 
     def handle_errors(response)
-      raise "Bad response! Got code: #{response.code}, w/ message #{response.body}" unless response.code == "200"
+      if response.code != "200"
+        raise Snowflake::Error.new({}),
+          "Bad response! Got code: #{response.code}, w/ message #{response.body}"
+      end
     end
 
     def request_with_auth_and_headers(connection, request_class, path, body=nil)
