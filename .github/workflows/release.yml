@@ -1,0 +1,23 @@
+name: Release
+on:
+  push:
+    branches:
+      - "master"
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@904f3fef85a9c80a3750cbe7d5159268fd5caa9f
+        with:
+          ruby-version: '3.0.6'
+      - name: Install dependencies
+        run: bundle install
+      - name: Build gem
+        run: rake build
+      - name: Build and publish to GitHub Package
+        uses: actionshub/publish-gem-to-github@v1.0.6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          owner: rinsed-org

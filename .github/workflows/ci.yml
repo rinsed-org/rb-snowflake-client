@@ -38,8 +38,3 @@ jobs:
           SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
           SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
           SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
-      - name: Build and publish to GitHub Package
-        uses: actionshub/publish-gem-to-github@v1.0.6
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          owner: rinsed-org
