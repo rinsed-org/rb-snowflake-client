@@ -20,6 +20,14 @@ size = 1_000
   SELECT * FROM FIVETRAN_DATABASE.RINSED_WEB_PRODUCTION_MAMMOTH.EVENTS limit #{size};
   SQL
   end
+
+  # you can now data.first or data.each and get rows that act like hashes
+  # RowFacade does the parsing at access time right now
+  # data.first.tap do |row|
+  #   puts row
+  #   puts "#{row[:id]}, #{row[:code]}, #{row[:payload]}, #{row[:updated_at]}"
+  # end
+
   puts "Querying with #{size}; took #{bm.real} actual size #{data.size}"
   puts
   puts
