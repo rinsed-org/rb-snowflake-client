@@ -16,9 +16,10 @@ size = 1_000
   data = nil
   bm =
   Benchmark.measure do
-      data = new_client.query <<-SQL
+    data = new_client.query <<-SQL
   SELECT * FROM FIVETRAN_DATABASE.RINSED_WEB_PRODUCTION_MAMMOTH.EVENTS limit #{size};
   SQL
+    data.each {|row| row } # access each row, causing type conversion to happen
   end
 
   # you can now data.first or data.each and get rows that act like hashes

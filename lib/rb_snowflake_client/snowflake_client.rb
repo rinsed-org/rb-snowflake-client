@@ -34,18 +34,23 @@ class SnowflakeClient
     @token_semaphore = Concurrent::Semaphore.new(1)
   end
 
-  def query(query)
+  def query(query, statement_count = nil)
+    statement_count = count_statements(query) if statement_count == nil
+
     response = nil
     connection_pool.with do |connection|
+      request_body = { "statement" => query, "warehouse" => "WEB_TEST_WH" }
+      request_body["MULTI_STATEMENT_COUNT"] = statement_count if statement_count > 1
+
       response = request_with_auth_and_headers(
         connection,
         Net::HTTP::Post,
         "/api/v2/statements?requestId=#{SecureRandom.uuid}",
-        { "statement" => query, "warehouse" => "WEB_TEST_WH" }.to_json
+        Oj.dump(request_body)
       )
     end
     handle_errors(response)
-    get_all_response_data(response)
+    retreive_in_memory_result_set(response)
   end
 
   private
@@ -53,7 +58,6 @@ class SnowflakeClient
       @connection_pool ||= ConnectionPool.new(size: MAX_CONNECTIONS, timeout: CONNECTION_TIMEOUT) do
         # TODO: the connection pool lib expects these connections to be "Self healing", they're obviously not
         #       so we'll need to write a wrapper that is
-        puts "OPENING CONNECTION"
         Net::HTTP.start(hostname, port, :use_ssl => true)
       end
     end
@@ -90,6 +94,10 @@ class SnowflakeClient
       Time.now.to_i > @token_expires_at
     end
 
+    def count_statements(query)
+      query.split(";").select {|part| part.strip.length > 0 }.size
+    end
+
     def handle_errors(response)
       raise "Bad response! Got code: #{response.code}, w/ message #{response.body}" unless response.code == "200"
     end
@@ -110,22 +118,21 @@ class SnowflakeClient
       response
     end
 
-    def get_all_response_data(response)
+    def retreive_in_memory_result_set(response)
       json_body = Oj.load(response.body, oj_options)
       statement_handle = json_body["statementHandle"]
       partitions = json_body["resultSetMetaData"]["partitionInfo"]
-      data = ResultSet.new(partitions.size, json_body["resultSetMetaData"]["rowType"])
-      #data = Concurrent::Array.new(partitions.size)
-      data[0] = json_body["data"]
+      result_set = ResultSet.new(partitions.size, json_body["resultSetMetaData"]["rowType"])
+      result_set[0] = json_body["data"]
 
       num_threads = number_of_threads_to_use(partitions.size)
-      puts "PARTITION COUNT: #{partitions.size} THREADS: #{num_threads}"
 
       if num_threads == 1
         # execute on this thread and avoid overhead of a thread pool
+
         partitions.each_with_index do |partition, index|
           next if index == 0 # already have the first partition
-          data[index] = retreive_partition_data(statement_handle, index)
+          result_set[index] = retreive_partition_data(statement_handle, index)
         end
       else
         thread_pool = Concurrent::FixedThreadPool.new(num_threads)
@@ -138,10 +145,10 @@ class SnowflakeClient
         end
         futures.each do |future|
           index, partition_data = future.value
-          data[index] = partition_data
+          result_set[index] = partition_data
         end
       end
-      data
+      result_set
     end
 
     def retreive_partition_data(statement_handle, partition_index)
