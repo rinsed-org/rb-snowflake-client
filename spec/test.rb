@@ -1,5 +1,5 @@
 require "benchmark"
-require_relative "snowflake_client"
+require "rb_snowflake_client"
 
 
 def new_client
