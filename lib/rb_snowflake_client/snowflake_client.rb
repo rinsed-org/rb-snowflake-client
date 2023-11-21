@@ -27,7 +27,7 @@ end
 # TODO: double check that net/http is actually using compression like it should be
 class SnowflakeClient
   JWT_TOKEN_TTL = 3600 # seconds, this is the max supported by snowflake
-  CONNECTION_TIMEOUT = 5 # seconds
+  CONNECTION_TIMEOUT = 30 # seconds
   MAX_CONNECTIONS = 8
   MAX_THREADS = 8
   THREAD_SCALE_FACTOR = 4 # parition count factor for number of threads (i.e. 2 == once we have 4 partitions, spin up a second thread)
@@ -210,6 +210,7 @@ class SnowflakeClient
         end
       end
       futures.each do |future|
+        # TODO: futures can get rejected, handle this error case
         index, partition_data = future.value
         result_set[index] = partition_data
       end

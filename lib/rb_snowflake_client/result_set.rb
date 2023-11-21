@@ -16,11 +16,7 @@ class ResultSet
   end
 
   def []=(index, value)
-    begin
     data[index] = value
-    rescue Exception => ex
-      binding.pry
-    end
   end
 
   def get_all_rows

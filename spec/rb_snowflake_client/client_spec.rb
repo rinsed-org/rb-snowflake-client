@@ -201,4 +201,3 @@ RSpec.describe SnowflakeClient do
     end
   end
 end
-
