@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: "*"
+  pull_request:
+    branches: "*"
+
+jobs:
+  test:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@904f3fef85a9c80a3750cbe7d5159268fd5caa9f
+        with:
+          ruby-version: '3.0.6'
+      - name: Install dependencies
+        run: bundle install
+      - name: Build gem
+        run: rake build
+      # Enable this section to allow debugging via SSH
+      #- name: Setup upterm session
+        #uses: lhotari/action-upterm@v1
+        #with:
+          ### limits ssh access and adds the ssh public key for the user which triggered the workflow
+          #limit-access-to-actor: true
+      - name: Install gem
+        run: cd pkg && gem install --local *.gem
+      - name: Run tests
+        run: ruby -rrb_snowflake_client spec/test.rb
+        env: # Or as an environment variable
+          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+          SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}

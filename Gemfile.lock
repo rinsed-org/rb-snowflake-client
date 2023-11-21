@@ -1,3 +1,8 @@
+PATH
+  remote: .
+  specs:
+    rb_snowflake_client (0.0.1)
+
 GEM
   remote: https://rubygems.org/
   specs:
@@ -5,15 +10,20 @@ GEM
     connection_pool (2.4.1)
     jwt (2.7.1)
     oj (3.16.1)
+    rake (13.1.0)
 
 PLATFORMS
+  arm64-darwin-21
   arm64-darwin-22
 
 DEPENDENCIES
+  bundler
   concurrent-ruby
   connection_pool
   jwt
   oj
+  rake
+  rb_snowflake_client!
 
 BUNDLED WITH
-   2.4.14
+   2.4.19

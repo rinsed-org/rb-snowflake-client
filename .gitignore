@@ -1,0 +1,9 @@
+/.project
+/.rakeTasks
+.idea/*
+
+# ruby gems
+*.gem
+/.DS_Store
+.env
+
