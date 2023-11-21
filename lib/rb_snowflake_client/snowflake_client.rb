@@ -50,7 +50,7 @@ class SnowflakeClient
       )
     end
     handle_errors(response)
-    retreive_in_memory_result_set(response)
+    retreive_result_set(response)
   end
 
   private
@@ -118,37 +118,15 @@ class SnowflakeClient
       response
     end
 
-    def retreive_in_memory_result_set(response)
+    def retreive_result_set(response)
       json_body = Oj.load(response.body, oj_options)
-      statement_handle = json_body["statementHandle"]
-      partitions = json_body["resultSetMetaData"]["partitionInfo"]
-      result_set = ResultSet.new(partitions.size, json_body["resultSetMetaData"]["rowType"])
-      result_set[0] = json_body["data"]
-
-      num_threads = number_of_threads_to_use(partitions.size)
+      num_threads = number_of_threads_to_use(json_body["resultSetMetaData"]["partitionInfo"].size)
 
       if num_threads == 1
-        # execute on this thread and avoid overhead of a thread pool
-
-        partitions.each_with_index do |partition, index|
-          next if index == 0 # already have the first partition
-          result_set[index] = retreive_partition_data(statement_handle, index)
-        end
+        single_thread_in_memory_result_set(json_body)
       else
-        thread_pool = Concurrent::FixedThreadPool.new(num_threads)
-        futures = []
-        partitions.each_with_index do |partition, index|
-          next if index == 0 # already have the first partition
-          futures << Concurrent::Future.execute(executor: thread_pool) do
-            [index, retreive_partition_data(statement_handle, index)]
-          end
-        end
-        futures.each do |future|
-          index, partition_data = future.value
-          result_set[index] = partition_data
-        end
+        threaded_in_memory_result_set(json_body, num_threads)
       end
-      result_set
     end
 
     def retreive_partition_data(statement_handle, partition_index)
@@ -175,5 +153,40 @@ class SnowflakeClient
 
     def oj_options
       { :bigdecimal_load => :bigdecimal }
+    end
+
+    def single_thread_in_memory_result_set(statement_json_body)
+      statement_handle = statement_json_body["statementHandle"]
+      partitions = statement_json_body["resultSetMetaData"]["partitionInfo"]
+      result_set = ResultSet.new(partitions.size, statement_json_body["resultSetMetaData"]["rowType"])
+      result_set[0] = statement_json_body["data"]
+
+      partitions.each_with_index do |partition, index|
+        next if index == 0 # already have the first partition
+        result_set[index] = retreive_partition_data(statement_handle, index)
+      end
+
+      result_set
+    end
+
+    def threaded_in_memory_result_set(statement_json_body, num_threads)
+      statement_handle = statement_json_body["statementHandle"]
+      partitions = statement_json_body["resultSetMetaData"]["partitionInfo"]
+      result_set = ResultSet.new(partitions.size, statement_json_body["resultSetMetaData"]["rowType"])
+      result_set[0] = statement_json_body["data"]
+
+      thread_pool = Concurrent::FixedThreadPool.new(num_threads)
+      futures = []
+      partitions.each_with_index do |partition, index|
+        next if index == 0 # already have the first partition
+        futures << Concurrent::Future.execute(executor: thread_pool) do
+          [index, retreive_partition_data(statement_handle, index)]
+        end
+      end
+      futures.each do |future|
+        index, partition_data = future.value
+        result_set[index] = partition_data
+      end
+      result_set
     end
 end
