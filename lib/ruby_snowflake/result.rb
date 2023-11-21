@@ -21,8 +21,7 @@ module RubySnowflake
     end
 
     def get_all_rows
-      # TODO use map to skip a flatten
-      data.map { |part| part.map { |r| wrap_row(r).to_h } }.flatten
+      map(&:to_h)
     end
 
     def each
