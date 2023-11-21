@@ -11,6 +11,7 @@ require "securerandom"
 require "uri"
 
 require_relative "result_set"
+require_relative "streaming_result_set"
 
 class Snowflake
   class Error < StandardError
@@ -57,8 +58,8 @@ class SnowflakeClient
     @token_semaphore = Concurrent::Semaphore.new(1)
   end
 
-  def query(query, statement_count = nil)
-    statement_count = count_statements(query) if statement_count == nil
+  def query(query, options = {})
+    statement_count = count_statements(query) if options[:statement_count] == nil
 
     response = nil
     connection_pool.with do |connection|
@@ -73,7 +74,7 @@ class SnowflakeClient
       )
     end
     handle_errors(response)
-    retreive_result_set(response)
+    retreive_result_set(response, options[:streaming])
   end
 
   private
@@ -144,11 +145,13 @@ class SnowflakeClient
       response
     end
 
-    def retreive_result_set(response)
+    def retreive_result_set(response, streaming)
       json_body = Oj.load(response.body, oj_options)
       num_threads = number_of_threads_to_use(json_body["resultSetMetaData"]["partitionInfo"].size)
 
-      if num_threads == 1
+      if streaming
+        streaming_result_set(json_body)
+      elsif num_threads == 1
         single_thread_in_memory_result_set(json_body)
       else
         threaded_in_memory_result_set(json_body, num_threads)
@@ -171,6 +174,10 @@ class SnowflakeClient
       partition_data = partition_json["data"]
 
       partition_data
+    end
+
+    def count_statements(query)
+      query.split(";").select {|part| part.strip.length > 0 }.size
     end
 
     def number_of_threads_to_use(partition_count)
@@ -214,6 +221,24 @@ class SnowflakeClient
         index, partition_data = future.value
         result_set[index] = partition_data
       end
+      result_set
+    end
+
+    def streaming_result_set(statement_json_body)
+      statement_handle = statement_json_body["statementHandle"]
+      partitions = statement_json_body["resultSetMetaData"]["partitionInfo"]
+
+      retreive_proc = ->(index) do
+        retreive_partition_data(statement_handle, index)
+      end
+
+      result_set = StreamingResultSet.new(
+        partitions.size,
+        statement_json_body["resultSetMetaData"]["rowType"],
+        retreive_proc
+      )
+      result_set[0] = statement_json_body["data"]
+
       result_set
     end
 end

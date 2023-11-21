@@ -6,4 +6,4 @@
 *.gem
 /.DS_Store
 .env
-
+.ruby-version
