@@ -11,10 +11,13 @@ gem "concurrent-ruby"
 gem "connection_pool"
 gem "jwt"
 gem "oj"
-gem "rspec"
-gem "pry"
 gem "dotenv"
 
 group :development do
   gem "parallel"
+  gem "pry"
+end
+
+group :test do
+  gem "rspec"
 end

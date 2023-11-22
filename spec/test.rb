@@ -9,7 +9,8 @@ def new_client
     "GBLARLO",
     "OZA47907",
     "SNOWFLAKE_CLIENT_TEST",
-    "SHA256:pbfmeTQ2+MestU2J9dXjGXTjtvZprYfHxzZzqqcIhFc=")
+    "SHA256:pbfmeTQ2+MestU2J9dXjGXTjtvZprYfHxzZzqqcIhFc=",
+    "WEB_TEST_WH")
 end
 
 size = 1_000

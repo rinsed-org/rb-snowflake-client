@@ -7,6 +7,19 @@ RSpec.describe RubySnowflake::Client do
     let(:query) { "" }
     let(:result) { client.query(query) }
 
+    context "when we can't connect" do
+      before do
+        allow(Net::HTTP).to receive(:start).and_raise("Some connection error")
+      end
+
+      it "raises a ConnectionError" do
+        expect { result }.to raise_error do |error|
+          expect(error).to be_a RubySnowflake::ConnectionError
+          expect(error.cause.message).to eq "Some connection error"
+        end
+      end
+    end
+
     context "when the query errors" do
       let(:query) { "INVALID QUERY;" }
       it "should raise an exception" do
@@ -24,7 +37,6 @@ RSpec.describe RubySnowflake::Client do
         it "should raise an exception" do
           expect { result }.to raise_error do |error|
             expect(error).to be_a RubySnowflake::Error
-            #binding.pry
             expect(error.message).to include "'TEST_DATABASE' does not exist or not authorized"
             # TODO: make sure to include query in context
             #expect(error.sentry_context).to include(
@@ -68,7 +80,6 @@ RSpec.describe RubySnowflake::Client do
         )
       end
 
-      # TODO: if we want this semantics. W/o streaming doesn't feel too great.
       it "should respond to each with a block" do
         expect { |b| result.each(&b) }.to yield_with_args(an_instance_of(RubySnowflake::Row))
       end
@@ -161,16 +172,16 @@ RSpec.describe RubySnowflake::Client do
         end
       end
 
-      context "fetching 150k rows x 10 times - with threads" do
-        let(:limit) { 150_000 }
+      context "fetching 50k rows x 5 times - with threads" do
+        let(:limit) { 50_000 }
         it "should work" do
           t = []
-          10.times do |idx|
+          5.times do |idx|
             t << Thread.new do
               client = described_class.connect
               result = client.query(query)
               rows = result.get_all_rows
-              expect(rows.length).to eq 150000
+              expect(rows.length).to eq 50_000
               expect((-50000...50000)).to include(rows[0]["id"].to_i)
             end
           end

@@ -12,9 +12,10 @@ require "uri"
 
 require_relative "result"
 require_relative "streaming_result"
+require_relative "client/http_connection_wrapper"
+require_relative "client/single_thread_in_memory_strategy"
 require_relative "client/streaming_result_strategy"
 require_relative "client/threaded_in_memory_strategy"
-require_relative "client/single_thread_in_memory_strategy"
 
 module RubySnowflake
   class Error < StandardError
@@ -26,8 +27,12 @@ module RubySnowflake
       @sentry_context = details
     end
   end
+  class BadResponseError < Error ; end
+  class ConnectionError < Error ; end
+  class ConnectionStarvedError < Error ; end
+  class RequestError < Error ; end
 
-  # TODO: double check that net/http is actually using compression like it should be
+
   class Client
     JWT_TOKEN_TTL = 3600 # seconds, this is the max supported by snowflake
     CONNECTION_TIMEOUT = 30 # seconds
@@ -43,17 +48,19 @@ module RubySnowflake
         ENV["SNOWFLAKE_ACCOUNT"],
         ENV["SNOWFLAKE_USER"],
         ENV["SNOWFLAKE_PUBLIC_KEY_FINGERPRINT"],
+        ENV["SNOWFLAKE_DEFAULT_WAREHOUSE"],
       )
     end
 
-    # TODO: parameterize warehouse
-    def initialize(uri, private_key_path, organization, account, user, public_key_fingerprint)
+    def initialize(uri, private_key_path, organization, account, user, public_key_fingerprint, default_warehouse)
       @base_uri = uri
       @private_key_path = private_key_path
       @organization = organization
       @account = account
       @user = user
-      @public_key_fingerprint = public_key_fingerprint # should be able to generate this from key pair, but haven't figured out right openssl options yet
+      @default_warehouse = default_warehouse
+      # should be able to generate this from key pair, but haven't figured out right openssl options yet
+      @public_key_fingerprint = public_key_fingerprint
 
       # start with an expired value to force creation
       @token_expires_at = Time.now.to_i - 1
@@ -62,10 +69,11 @@ module RubySnowflake
 
     def query(query, options = {})
       statement_count = count_statements(query) if options[:statement_count] == nil
+      warehouse = options[:warehouse] || @default_warehouse
 
       response = nil
       connection_pool.with do |connection|
-        request_body = { "statement" => query, "warehouse" => "WEB_TEST_WH" }
+        request_body = { "statement" => query, "warehouse" => warehouse }
         request_body["MULTI_STATEMENT_COUNT"] = statement_count if statement_count > 1
 
         response = request_with_auth_and_headers(
@@ -82,9 +90,7 @@ module RubySnowflake
     private
       def connection_pool
         @connection_pool ||= ConnectionPool.new(size: MAX_CONNECTIONS, timeout: CONNECTION_TIMEOUT) do
-          # TODO: the connection pool lib expects these connections to be "Self healing", they're obviously not
-          #       so we'll need to write a wrapper that is
-          Net::HTTP.start(hostname, port, :use_ssl => true)
+          HttpConnectionWrapper.new(hostname, port).start
         end
       end
 
@@ -126,7 +132,7 @@ module RubySnowflake
 
       def handle_errors(response)
         if response.code != "200"
-          raise Error.new({}),
+          raise BadResponseError.new({}),
             "Bad response! Got code: #{response.code}, w/ message #{response.body}"
         end
       end

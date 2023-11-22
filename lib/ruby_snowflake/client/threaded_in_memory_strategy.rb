@@ -17,7 +17,15 @@ module RubySnowflake
           end
         end
         futures.each do |future|
-          # TODO: futures can get rejected, handle this error case
+          if future.rejected?
+            raise ConnectionStarvedError.new(
+                    "A partition request timed out. This is usually do to using the client in" \
+                    "multiple threads. The client uses a connection thread pool and if too many" \
+                    "requests are all done in threads at the same time, threads can get starved" \
+                    "of access to connections. The solution for this is to spin up a new client" \
+                    "instance with it's own connection pool to snowflake."
+                  )
+          end
           index, partition_data = future.value
           result[index] = partition_data
         end
