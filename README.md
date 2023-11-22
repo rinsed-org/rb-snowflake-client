@@ -8,7 +8,7 @@ Add to your Gemfile or use `gem install rb-snowflake-client`
 ```
 
 Then require, create a client and query
-```
+```ruby
 require "rb_snowflake_client"
 
 client = RubySnowflake::Client.connect # uses env variables, you can also new one up
