@@ -11,7 +11,10 @@ Then require, create a client and query
 ```ruby
 require "rb_snowflake_client"
 
-client = RubySnowflake::Client.connect # uses env variables, you can also new one up
+
+# uses env variables, you can also new one up
+# see: https://github.com/rinsed-org/pure-ruby-snowflake-client/blob/master/lib/ruby_snowflake/client.rb#L43
+client = RubySnowflake::Client.connect
 
 # will get all data in memory
 result = client.query("SELECT ID, NAME FROM SOMETABLE")
