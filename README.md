@@ -1,14 +1,39 @@
-# Experimental pure ruby snowflake client using the v2 HTTP API
-
-# Links:
-- snowflake API reference https://docs.snowflake.com/en/developer-guide/sql-api/reference
-- snowflake authentication docs: https://docs.snowflake.com/en/developer-guide/sql-api/authenticating
-
+# Ruby snowflake client using the v2 HTTP API
 
 # Usage
-```bash
-bundle install
-bundle exec ruby test.rb
+
+Add to your Gemfile or use `gem install rb-snowflake-client`
+```ruby
+  gem "rb-snowflake-client"
+```
+
+Then require, create a client and query
+```
+require "rb_snowflake_client"
+
+client = RubySnowflake::Client.connect # uses env variables, you can also new one up
+
+# will get all data in memory
+result = client.query("SELECT ID, NAME FROM SOMETABLE")
+
+# result is Enumerable
+result.each do |row|
+  puts row[:id]    # row supports access with symbols
+  puts row["name"] # or case insensitive strings
+  puts row.to_h    # and can produce a hash with keys/values
+end
+
+# query supports multiple statements
+result = client.query("SELECT 1; SELECT ID FROM MYTABLE")
+
+# odds are you have alot of data in snowflake, you can also stream results
+# and avoid pulling them all into memory. The client will prefetch the next
+# data partition for you. If you have some IO in your processing there should
+# always be data available for you.
+result = client.query("SELECT * FROM HUGETABLE", streaming: true)
+result.each do |row|
+  puts row
+end
 ```
 
 # Keypair auth info
@@ -21,3 +46,7 @@ bundle exec ruby test.rb
 3. Then you need to alter the user you want to auth with by setting their public key through an ALTER command (PEM format)
    Then, take the SHA256 fingerprint it generates on the user and use that as a parameter for the client.
 4. All of this is hardcoded for a user with too many permissions right now. Will fix ASAP next week.
+
+# Links:
+- snowflake API reference https://docs.snowflake.com/en/developer-guide/sql-api/reference
+- snowflake authentication docs: https://docs.snowflake.com/en/developer-guide/sql-api/authenticating
