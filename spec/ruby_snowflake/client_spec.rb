@@ -1,6 +1,6 @@
 require "spec_helper"
 
-RSpec.describe SnowflakeClient do
+RSpec.describe RubySnowflake::Client do
   describe "#fetch" do
     let(:client) { described_class.connect }
 
@@ -11,7 +11,7 @@ RSpec.describe SnowflakeClient do
       let(:query) { "INVALID QUERY;" }
       it "should raise an exception" do
         expect { result }.to raise_error do |error|
-          expect(error).to be_a Snowflake::Error
+          expect(error).to be_a RubySnowflake::Error
           # TODO: make sure to include query in context
           #expect(error.sentry_context).to include(
             #sql: query
@@ -23,8 +23,8 @@ RSpec.describe SnowflakeClient do
         let(:query) { "SELECT * FROM TEST_DATABASE.RINSED_WEB_APP.EMAILS LIMIT 1;" }
         it "should raise an exception" do
           expect { result }.to raise_error do |error|
-            expect(error).to be_a Snowflake::Error
-            binding.pry
+            expect(error).to be_a RubySnowflake::Error
+            #binding.pry
             expect(error.message).to include "'TEST_DATABASE' does not exist or not authorized"
             # TODO: make sure to include query in context
             #expect(error.sentry_context).to include(
@@ -41,7 +41,7 @@ RSpec.describe SnowflakeClient do
             query = "SELECT * FROM TEST_DATABASE#{idx}.RINSED_WEB_APP.EMAILS LIMIT 1;"
 
             expect { c.query(query) }.to raise_error do |error|
-              expect(error).to be_a Snowflake::Error
+              expect(error).to be_a RubySnowflake::Error
               # TODO: make sure to include query in context
               #expect(error.sentry_context).to include(
                 #sql: query
@@ -56,8 +56,8 @@ RSpec.describe SnowflakeClient do
     context "with a simple query returning string" do
       let(:query) { "SELECT 1;" }
 
-      it "should return a Snowflake::Result" do
-        expect(result).to be_a(ResultSet)
+      it "should return a RubySnowflake::Result" do
+        expect(result).to be_a(Result)
       end
 
       it "should respond to get_all_rows" do
