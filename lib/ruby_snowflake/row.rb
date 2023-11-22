@@ -5,7 +5,7 @@ require "time"
 
 module RubySnowflake
   class Row
-    EPOC_JULIAN_DAY_NUMBER = Date.new(1970,1,1).jd
+    EPOCH_JULIAN_DAY_NUMBER = Date.new(1970,1,1).jd
 
     def initialize(row_types, column_to_index, data)
       @row_types = row_types
@@ -23,7 +23,7 @@ module RubySnowflake
       when :boolean
         @data[index] == "true"
       when :date
-        Date.jd(@data[index].to_i + EPOC_JULIAN_DAY_NUMBER)
+        Date.jd(@data[index].to_i + EPOCH_JULIAN_DAY_NUMBER)
       when :fixed
         if @row_types[index][:scale] == 0
           Integer(@data[index])
@@ -31,7 +31,7 @@ module RubySnowflake
           BigDecimal(@data[index]).round(@row_types[index][:scale])
         end
       when :float, :double, :"double precision", :real
-        # snowflake treats these all as 64 bit IEEE 754 floating point numbers, and will we
+        # snowflake treats these all as 64 bit IEEE 754 floating point numbers, and will we too
         @data[index].to_f
       when :time, :datetime, :timestamp, :timestamp_ltz, :timestamp_ntz
         Time.at(BigDecimal(@data[index])).utc
