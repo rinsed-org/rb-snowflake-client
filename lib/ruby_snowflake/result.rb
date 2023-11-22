@@ -58,7 +58,12 @@ module RubySnowflake
         @column_to_index = IndifferentCaseInsensitiveHash.new
 
         row_type_data.each_with_index do |type_data, index|
-          @row_types[index] = type_data["type"].downcase.to_sym
+          @row_types[index] = {
+            type: type_data["type"].downcase.to_sym,
+            scale: type_data["scale"].to_i,
+            precision: type_data["precision"].to_i,
+            name: type_data["name"].to_sym,
+          }
           @column_to_index[type_data["name"]] = index
         end
       end
