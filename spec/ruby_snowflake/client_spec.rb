@@ -173,7 +173,7 @@ RSpec.describe RubySnowflake::Client do
       end
 
       context "fetching 50k rows x 5 times - with threads" do
-        let(:limit) { 150_000 }
+        let(:limit) { 50_000 }
         it "should work" do
           t = []
           5.times do |idx|
@@ -181,7 +181,7 @@ RSpec.describe RubySnowflake::Client do
               client = described_class.connect
               result = client.query(query)
               rows = result.get_all_rows
-              expect(rows.length).to eq 150_000
+              expect(rows.length).to eq 50_000
               expect((-50000...50000)).to include(rows[0]["id"].to_i)
             end
           end
