@@ -57,23 +57,21 @@ RSpec.describe RubySnowflake::Client do
       let(:query) { "SELECT 1;" }
 
       it "should return a RubySnowflake::Result" do
-        expect(result).to be_a(Result)
+        expect(result).to be_a(RubySnowflake::Result)
       end
 
       it "should respond to get_all_rows" do
-        #rows = result.get_all_rows
         expect(result.length).to eq(1)
         rows = result.get_all_rows
         expect(rows).to eq(
-          # The value should be an integer. TODO: figure out why it's not
-          [{"1" => "1"}]
+          [{"1" => 1}]
         )
       end
 
       # TODO: if we want this semantics. W/o streaming doesn't feel too great.
-      #it "should respond to get_all_rows with a block" do
-        #expect { |b| result.get_all_rows(&b) }.to yield_with_args({"1" => 1})
-      #end
+      it "should respond to each with a block" do
+        expect { |b| result.each(&b) }.to yield_with_args(an_instance_of(RubySnowflake::Row))
+      end
     end
 
     context "with a more complex query" do
@@ -89,8 +87,8 @@ RSpec.describe RubySnowflake::Client do
         {
           "coffes_per_week" => 3.41,
           "id" => 1,
-          "dob" => be_within(0.01).of(Time.new(1990, 10, 17,0,0,0, 0)),
-          "created_at" => be_within(0.01).of(Time.new(2023,5,12,4,22,8,0)),
+          "dob" => Date.new(1990, 10, 17),
+          "created_at" => be_within(0.01).of(Time.new(2023,5,12,4,22,8.63,0)),
           "name" => "John Smith",
         }
       end
@@ -98,8 +96,8 @@ RSpec.describe RubySnowflake::Client do
         {
           "coffes_per_week" => 3.525,
           "id" => 2,
-          "dob" => be_within(0.01).of(Time.new(1990,1,9,0,0,0, 0)),
-          "created_at" => be_within(0.01).of(Time.new(2023,5,12,4,22,8,0)),
+          "dob" => Date.new(1990, 1, 9),
+          "created_at" => be_within(0.01).of(Time.new(2023,5,12,4,22,8.63,0)),
           "name" => "Jane Smith",
         }
       end
@@ -192,6 +190,29 @@ RSpec.describe RubySnowflake::Client do
               rows = result.get_all_rows
               expect(rows.length).to eq 150000
               expect((-50000...50000)).to include(rows[0]["id"].to_i)
+            end
+          end
+
+          t.map(&:join)
+        end
+      end
+
+      context "fetching 150k rows x 10 times - with streaming" do
+        let(:limit) { 150_000 }
+        it "should work" do
+          t = []
+          10.times do |idx|
+            t << Thread.new do
+              client = described_class.connect
+              result = client.query(query)
+              count = 0
+              first_row = nil
+              result.each do |row|
+                first_row = row if first_row.nil?
+                count += 1
+              end
+              expect(count).to eq 150000
+              expect((-50000...50000)).to include(first_row["id"].to_i)
             end
           end
 

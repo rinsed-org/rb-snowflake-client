@@ -18,19 +18,26 @@ module RubySnowflake
       index = column.is_a?(Numeric) ? column.to_i : @column_to_index[column]
       return nil if index.nil?
 
-      # TODO: double check these timestamp conversions, I'm pretty sure they're wrong.
-      case @row_types[index]
-      when :time, :timestamp_ltz, :timestamp_ntz
-        Time.at(@data[index].to_f)
-      when :timestamp_tz
-        timestamp, offset_minutes = @data[index].split(" ")
-        Time.at(timestamp.to_f - offset_minutes.to_i * 60)
+
+      case @row_types[index][:type]
       when :boolean
         @data[index] == "true"
-      when :date # TODO looks like we might be returning a Time in the go version
-        @data[index] = Date.jd(@data[index].to_i + EPOC_JULIAN_DAY_NUMBER)
-      when :real
-        @data[index] = @data[index].to_f
+      when :date
+        Date.jd(@data[index].to_i + EPOC_JULIAN_DAY_NUMBER)
+      when :fixed
+        if @row_types[index][:scale] == 0
+          Integer(@data[index])
+        else
+          BigDecimal(@data[index]).round(@row_types[index][:scale])
+        end
+      when :float, :double, :"double precision", :real
+        # snowflake treats these all as 64 bit IEEE 754 floating point numbers, and will we
+        @data[index].to_f
+      when :time, :datetime, :timestamp, :timestamp_ltz, :timestamp_ntz
+        Time.at(BigDecimal(@data[index])).utc
+      when :timestamp_tz
+        timestamp, offset_minutes = @data[index].split(" ")
+        Time.at(BigDecimal(timestamp) - offset_minutes.to_i * 60)
       else
         @data[index]
       end
