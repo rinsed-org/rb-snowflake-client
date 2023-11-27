@@ -6,6 +6,7 @@ require "time"
 module RubySnowflake
   class Row
     EPOCH_JULIAN_DAY_NUMBER = Date.new(1970,1,1).jd
+    TIME_FORMAT = "%s.%N".freeze
 
     def initialize(row_types, column_to_index, data)
       @row_types = row_types
@@ -34,10 +35,10 @@ module RubySnowflake
         # snowflake treats these all as 64 bit IEEE 754 floating point numbers, and will we too
         Float(@data[index])
       when :time, :datetime, :timestamp, :timestamp_ltz, :timestamp_ntz
-        Time.at(BigDecimal(@data[index])).utc
+        Time.strptime(@data[index], TIME_FORMAT).utc
       when :timestamp_tz
         timestamp, offset_minutes = @data[index].split(" ")
-        Time.at(BigDecimal(timestamp) - Integer(offset_minutes) * 60)
+        Time.strptime(@data[index], TIME_FORMAT).utc - (Integer(offset_minutes) * 60)
       else
         @data[index]
       end
