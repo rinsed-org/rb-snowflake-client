@@ -68,13 +68,11 @@ module RubySnowflake
     end
 
     def query(query, options = {})
-      statement_count = count_statements(query) if options[:statement_count] == nil
       warehouse = options[:warehouse] || @default_warehouse
 
       response = nil
       connection_pool.with do |connection|
         request_body = { "statement" => query, "warehouse" => warehouse }
-        request_body["MULTI_STATEMENT_COUNT"] = statement_count if statement_count > 1
 
         response = request_with_auth_and_headers(
           connection,
@@ -124,10 +122,6 @@ module RubySnowflake
 
       def jwt_token_expired?
         Time.now.to_i > @token_expires_at
-      end
-
-      def count_statements(query)
-        query.split(";").select {|part| part.strip.length > 0 }.size
       end
 
       def handle_errors(response)
@@ -184,10 +178,6 @@ module RubySnowflake
         partition_data = partition_json["data"]
 
         partition_data
-      end
-
-      def count_statements(query)
-        query.split(";").select {|part| part.strip.length > 0 }.size
       end
 
       def number_of_threads_to_use(partition_count)

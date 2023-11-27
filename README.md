@@ -26,9 +26,6 @@ result.each do |row|
   puts row.to_h    # and can produce a hash with keys/values
 end
 
-# query supports multiple statements
-result = client.query("SELECT 1; SELECT ID FROM MYTABLE")
-
 # odds are you have alot of data in snowflake, you can also stream results
 # and avoid pulling them all into memory. The client will prefetch the next
 # data partition for you. If you have some IO in your processing there should
@@ -38,6 +35,11 @@ result.each do |row|
   puts row
 end
 ```
+
+# Gotchas
+
+1. Does not yet support multiple statements (work around is to wrap in `BEGIN ... END`)
+2. Its faster to work directly with the row value and not call to_h if you don't need to
 
 # Keypair auth info
 
