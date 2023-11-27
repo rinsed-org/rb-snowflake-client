@@ -46,7 +46,7 @@ module RubySnowflake
     def to_h
       output = {}
       @column_to_index.each_pair do |name, index|
-        output[name] = self[index]
+        output[name.downcase] = self[index]
       end
       output
     end

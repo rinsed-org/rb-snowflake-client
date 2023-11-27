@@ -48,7 +48,7 @@ module RubySnowflake
     end
 
     def columns
-      @row_types.map {|type| type[:name] }
+      @row_types.map {|type| type[:name].downcase }
     end
 
     private
@@ -67,7 +67,7 @@ module RubySnowflake
             precision: type_data["precision"].to_i,
             name: type_data["name"].to_sym,
           }
-          @column_to_index[type_data["name"]] = index
+          @column_to_index[type_data["name"].downcase] = index
         end
       end
   end

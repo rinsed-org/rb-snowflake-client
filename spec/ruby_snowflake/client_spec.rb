@@ -135,7 +135,7 @@ RSpec.describe RubySnowflake::Client do
         expect(rows.length).to eq(1)
         expect(rows[0]).to eq({
           "id" => 1,
-          "bigfloat" => 8.25, #precision of only 2 decimals
+          "bigfloat" => BigDecimal("8.25"), #precision of only 2 decimals
         })
       end
     end
