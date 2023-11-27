@@ -39,7 +39,8 @@ end
 # Gotchas
 
 1. Does not yet support multiple statements (work around is to wrap in `BEGIN ... END`)
-2. Its faster to work directly with the row value and not call to_h if you don't need to
+2. Only supports key pair authentication
+3. Its faster to work directly with the row value and not call to_h if you don't need to
 
 # Keypair auth info
 
