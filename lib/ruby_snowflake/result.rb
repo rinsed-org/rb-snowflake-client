@@ -48,6 +48,10 @@ module RubySnowflake
       wrap_row(data.last.last)
     end
 
+    def columns
+      @row_types.map {|type| type[:name] }
+    end
+
     private
       def wrap_row(row)
         Row.new(@row_types, @column_to_index, row)
