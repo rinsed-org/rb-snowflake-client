@@ -15,7 +15,7 @@ module RubySnowflake
 
     # see: https://docs.snowflake.com/en/developer-guide/sql-api/handling-responses#getting-the-data-from-the-results
     def [](column)
-      index = column.is_a?(Numeric) ? column.to_i : @column_to_index[column]
+      index = column.is_a?(Numeric) ? Integer(column) : @column_to_index[column]
       return nil if index.nil?
       return nil if @data[index].nil?
 
@@ -23,7 +23,7 @@ module RubySnowflake
       when :boolean
         @data[index] == "true"
       when :date
-        Date.jd(@data[index].to_i + EPOCH_JULIAN_DAY_NUMBER)
+        Date.jd(Integer(@data[index]) + EPOCH_JULIAN_DAY_NUMBER)
       when :fixed
         if @row_types[index][:scale] == 0
           Integer(@data[index])
@@ -32,12 +32,12 @@ module RubySnowflake
         end
       when :float, :double, :"double precision", :real
         # snowflake treats these all as 64 bit IEEE 754 floating point numbers, and will we too
-        @data[index].to_f
+        Float(@data[index])
       when :time, :datetime, :timestamp, :timestamp_ltz, :timestamp_ntz
         Time.at(BigDecimal(@data[index])).utc
       when :timestamp_tz
         timestamp, offset_minutes = @data[index].split(" ")
-        Time.at(BigDecimal(timestamp) - offset_minutes.to_i * 60)
+        Time.at(BigDecimal(timestamp) - Integer(offset_minutes) * 60)
       else
         @data[index]
       end
