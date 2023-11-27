@@ -17,7 +17,7 @@ module RubySnowflake
     def [](column)
       index = column.is_a?(Numeric) ? column.to_i : @column_to_index[column]
       return nil if index.nil?
-
+      return nil if @data[index].nil?
 
       case @row_types[index][:type]
       when :boolean
