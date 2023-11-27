@@ -44,7 +44,7 @@ module RubySnowflake
     end
 
     def to_h
-      output = IndifferentCaseInsensitiveHash.new
+      output = {}
       @column_to_index.each_pair do |name, index|
         output[name] = self[index]
       end

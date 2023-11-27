@@ -6,12 +6,12 @@ source "https://rubygems.org"
 gemspec
 
 gem "bundler"
-gem "rake"
 gem "concurrent-ruby"
 gem "connection_pool"
+gem "dotenv"
 gem "jwt"
 gem "oj"
-gem "dotenv"
+gem "rake"
 
 group :development do
   gem "parallel"

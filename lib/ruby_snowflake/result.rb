@@ -2,7 +2,6 @@
 
 require "concurrent"
 
-require_relative "indifferent_case_insensitive_hash"
 require_relative "row"
 
 module RubySnowflake
@@ -59,7 +58,7 @@ module RubySnowflake
 
       def extract_row_metadata(row_type_data)
         @row_types = []
-        @column_to_index = IndifferentCaseInsensitiveHash.new
+        @column_to_index = {}
 
         row_type_data.each_with_index do |type_data, index|
           @row_types[index] = {

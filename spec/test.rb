@@ -16,12 +16,20 @@ end
 size = 1_000
 11.times do
   data = nil
+  type_conversion_time = 0
   bm =
-  Benchmark.measure do
+    Benchmark.measure do
     data = new_client.query <<-SQL
   SELECT * FROM FIVETRAN_DATABASE.RINSED_WEB_PRODUCTION_MAMMOTH.EVENTS limit #{size};
   SQL
-    data.each {|row| row } # access each row, causing type conversion to happen
+
+    # access each column on each row, causing type conversion to happen
+    keys = data.columns
+    data.each do |row|
+      type_conversion_time += Benchmark.measure do
+        keys.each { |key| row[key] }
+      end.utime
+    end
   end
 
   # you can now data.first or data.each and get rows that act like hashes
@@ -31,7 +39,7 @@ size = 1_000
   #   puts "#{row[:id]}, #{row[:code]}, #{row[:payload]}, #{row[:updated_at]}"
   # end
 
-  puts "Querying with #{size}; took #{bm.real} actual size #{data.size}"
+  puts "Querying with #{size}; took #{bm.utime} actual size #{data.size} type conversion: #{type_conversion_time}"
   puts
   puts
   size = size * 2
