@@ -67,8 +67,8 @@ module RubySnowflake
       @token_semaphore = Concurrent::Semaphore.new(1)
     end
 
-    def query(query, options = {})
-      warehouse = options[:warehouse] || @default_warehouse
+    def query(query, warehouse: nil, streaming: false)
+      warehouse ||= @default_warehouse
 
       response = nil
       connection_pool.with do |connection|
@@ -82,7 +82,7 @@ module RubySnowflake
         )
       end
       handle_errors(response)
-      retreive_result_set(response, options[:streaming])
+      retreive_result_set(response, streaming)
     end
 
     private
