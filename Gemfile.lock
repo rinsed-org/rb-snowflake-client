@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    rb_snowflake_client (0.0.4)
+    rb_snowflake_client (0.0.6)
 
 GEM
   remote: https://rubygems.org/
