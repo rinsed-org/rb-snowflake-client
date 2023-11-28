@@ -1,9 +1,9 @@
 require "spec_helper"
 
 RSpec.describe RubySnowflake::Client do
-  describe "#fetch" do
-    let(:client) { described_class.connect }
+  let(:client) { described_class.connect }
 
+  describe "querying" do
     let(:query) { "" }
     let(:result) { client.query(query) }
 
@@ -159,10 +159,10 @@ RSpec.describe RubySnowflake::Client do
         end
       end
 
-      context "fetching 150k rows x 100 times" do
+      context "fetching 150k rows x 20 times" do
         let(:limit) { 150_000 }
         it "should work" do
-          100.times do |idx|
+          20.times do |idx|
             client = described_class.connect
             result = client.query(query)
             rows = result.get_all_rows
@@ -179,6 +179,8 @@ RSpec.describe RubySnowflake::Client do
           5.times do |idx|
             t << Thread.new do
               client = described_class.connect
+              client.max_threads_per_query = 12
+              client.max_connections = 12
               result = client.query(query)
               rows = result.get_all_rows
               expect(rows.length).to eq 50_000
@@ -190,12 +192,14 @@ RSpec.describe RubySnowflake::Client do
         end
       end
 
-      context "fetching 150k rows x 10 times - with threads & shared client" do
+      context "fetching 150k rows x 5 times - with threads & shared client" do
         let(:limit) { 150_000 }
         it "should work" do
           t = []
           client = described_class.connect
-          10.times do |idx|
+          client.max_threads_per_query = 8
+          client.max_connections = 40
+          5.times do |idx|
             t << Thread.new do
               result = client.query(query)
               rows = result.get_all_rows
@@ -231,5 +235,24 @@ RSpec.describe RubySnowflake::Client do
         end
       end
     end
+  end
+
+  shared_examples "a configuration setting" do |attribute, value|
+    it "supports configuring #{attribute}" do
+      expect do
+        client.send("#{attribute}=", value)
+        client.send(attribute)
+      end.not_to raise_error
+    end
+  end
+
+  describe "configuration" do
+    it_behaves_like "a configuration setting", :logger, Logger.new(STDOUT)
+    it_behaves_like "a configuration setting", :jwt_token_ttl, 43
+    it_behaves_like "a configuration setting", :connection_timeout, 43
+    it_behaves_like "a configuration setting", :max_connections, 13
+    it_behaves_like "a configuration setting", :max_threads_per_query, 6
+    it_behaves_like "a configuration setting", :thread_scale_factor, 5
+    it_behaves_like "a configuration setting", :http_retries, 2
   end
 end

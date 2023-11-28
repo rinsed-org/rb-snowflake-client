@@ -68,6 +68,26 @@ result.each do |row|
 end
 ```
 
+# Configuration Options
+
+The client supports the following configuration options, each with their own getter/setter
+
+`logger` - takes any ruby logger (by default it's a std lib Logger.new(STDOUT), set at DEBUG level
+`jwt_token_ttl` - The time to live set on JWT token in seconds, defaults to 3600 (60 minutes, the longest Snowflake supports)
+`connection_timeout` - The amount of time in seconds that the client's connection pool will wait before erroring in handing out a valid connection, defaults to 60 seconds
+`max_connections` - The maximum number of http connections to hold open in the connection pool. If you use the client in a threaded context, you may need to increase this to be threads * client.max_threads_per_query, defaults to 16
+`max_threads_per_query` - The maximum number of threads the client should use to retreive data, per query, defaults to 8. If you want the client to act in a single threaded way, set this to 1
+`thread_scale_factor` - the factor used to decide when to spin up another thread. The default of 4 was determined experimentally, if you have high latency decreasing this might speed up overall speed for a large data set.
+`http_retries` - By default the client will retry common typically transient errors (http responses) twice, you can change the number of retries with this.
+
+Example configuration:
+```ruby
+  client = RubySnowflake.connect
+  client.logger = Rails.logger
+  client.max_connections = 24
+  client.http_retries = 1
+end
+
 # Gotchas
 
 1. Does not yet support multiple statements (work around is to wrap in `BEGIN ... END`)

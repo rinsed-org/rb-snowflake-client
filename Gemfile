@@ -12,6 +12,7 @@ gem "dotenv"
 gem "jwt"
 gem "oj"
 gem "rake"
+gem "retryable"
 
 group :development do
   gem "parallel"
