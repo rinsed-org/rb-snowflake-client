@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "base64"
 require "benchmark"
 require "concurrent"
 require "connection_pool"
@@ -7,8 +8,10 @@ require "json"
 require "jwt"
 require "net/http"
 require "oj"
+require "openssl"
 require "securerandom"
 require "uri"
+
 
 require_relative "result"
 require_relative "streaming_result"
@@ -35,32 +38,32 @@ module RubySnowflake
 
   class Client
     JWT_TOKEN_TTL = 3600 # seconds, this is the max supported by snowflake
-    CONNECTION_TIMEOUT = 30 # seconds
+    CONNECTION_TIMEOUT = 60 # seconds, how long for a thread to wait for a connection b4 erroring
     MAX_CONNECTIONS = 8
     MAX_THREADS = 8
     THREAD_SCALE_FACTOR = 4 # parition count factor for number of threads (i.e. 2 == once we have 4 partitions, spin up a second thread)
 
     def self.connect
+      private_key = ENV["SNOWFLAKE_PRIVATE_KEY"] || File.read(ENV["SNOWFLAKE_PRIVATE_KEY_PATH"])
+
       new(
         ENV["SNOWFLAKE_URI"],
-        ENV["SNOWFLAKE_PRIVATE_KEY_PATH"],
+        private_key,
         ENV["SNOWFLAKE_ORGANIZATION"],
         ENV["SNOWFLAKE_ACCOUNT"],
         ENV["SNOWFLAKE_USER"],
-        ENV["SNOWFLAKE_PUBLIC_KEY_FINGERPRINT"],
         ENV["SNOWFLAKE_DEFAULT_WAREHOUSE"],
       )
     end
 
-    def initialize(uri, private_key_path, organization, account, user, public_key_fingerprint, default_warehouse)
+    def initialize(uri, private_key, organization, account, user, default_warehouse)
       @base_uri = uri
-      @private_key_path = private_key_path
+      @private_key_pem = private_key
       @organization = organization
       @account = account
       @user = user
       @default_warehouse = default_warehouse
-      # should be able to generate this from key pair, but haven't figured out right openssl options yet
-      @public_key_fingerprint = public_key_fingerprint
+      @public_key_fingerprint = public_key_fingerprint(@private_key_pem)
 
       # start with an expired value to force creation
       @token_expires_at = Time.now.to_i - 1
@@ -107,7 +110,7 @@ module RubySnowflake
           now = Time.now.to_i
           @token_expires_at = now + JWT_TOKEN_TTL
 
-          private_key = OpenSSL::PKey.read(File.read(@private_key_path))
+          private_key = OpenSSL::PKey.read(@private_key_pem)
 
           payload = {
             :iss => "#{@organization.upcase}-#{@account.upcase}.#{@user}.#{@public_key_fingerprint}",
@@ -186,6 +189,14 @@ module RubySnowflake
 
       def oj_options
         { :bigdecimal_load => :bigdecimal }
+      end
+
+      def public_key_fingerprint(private_key_pem_string)
+        public_key_der = OpenSSL::PKey::RSA.new(private_key_pem_string).public_key.to_der
+        digest = OpenSSL::Digest::SHA256.new.digest(public_key_der)
+        fingerprint = Base64.strict_encode64(digest)
+
+        "SHA256:#{fingerprint}"
       end
   end
 end
