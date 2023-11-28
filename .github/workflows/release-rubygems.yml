@@ -6,9 +6,6 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
-    permissions:
-      packages: write
-      contents: read
     steps:
       - uses: actions/checkout@v3
       - name: Set up Ruby
@@ -17,14 +14,7 @@ jobs:
           ruby-version: '3.0.6'
       - name: Install dependencies
         run: bundle install
-      - name: Build gem
-        run: rake build
-      - name: Build and publish to GitHub Package
-        uses: actionshub/publish-gem-to-github@v1.0.6
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          owner: rinsed-org
-      - name: Build & Push to Rubygems
+      - name: Publish to RubyGems
         run: |
           mkdir -p $HOME/.gem
           touch $HOME/.gem/credentials
@@ -34,4 +24,3 @@ jobs:
           gem push *.gem
         env:
           GEM_HOST_API_KEY: "${{secrets.RUBYGEMS_AUTH_TOKEN}}"
-
