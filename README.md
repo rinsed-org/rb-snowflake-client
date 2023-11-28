@@ -32,19 +32,28 @@ client = RubySnowflake::Client.new(
   "snowflake-account",                                  # typically your subdomain
   "snowflake-user",                                     # Your snowflake user
   "some_warehouse",                                     # The name of your warehouse to use by default
+  max_connections: 12,                                  # Config options can be passed in
+  connection_timeout: 45,                               # See below for the full set of options
 )
 
-# alternatively you can use the connect method, which will pull these values from the following environment variables. You can either provide the path to the PEM file, or it's contents in an ENV variable.
-# SNOWFLAKE_URI
-# SNOWFLAKE_PRIVATE_KEY_PATH
-#   or
-# SNOWFLAKE_PRIVATE_KEY
-# SNOWFLAKE_ORGANIZATION
-# SNOWFLAKE_ACCOUNT
-# SNOWFLAKE_USER
-# SNOWFLAKE_DEFAULT_WAREHOUSE
-RubySnowflake::Client.connect
+# alternatively you can use the `from_env` method, which will pull these values from the following environment variables. You can either provide the path to the PEM file, or it's contents in an ENV variable.
+RubySnowflake::Client.from_env
 ```
+Available ENV variables (see below in the config section for details)
+`SNOWFLAKE_URI`
+`SNOWFLAKE_PRIVATE_KEY_PATH`
+   or (use either the key, or the path, key takes precedence if both are provided)
+`SNOWFLAKE_PRIVATE_KEY`
+`SNOWFLAKE_ORGANIZATION`
+`SNOWFLAKE_ACCOUNT`
+`SNOWFLAKE_USER`
+`SNOWFLAKE_DEFAULT_WAREHOUSE`
+`SNOWFLAKE_JWT_TOKEN_TTL`
+`SNOWFLAKE_CONNECTION_TIMEOUT`
+`SNOWFLAKE_MAX_CONNECTIONS`
+`SNOWFLAKE_MAX_THREADS_PER_QUERY`
+`SNOWFLAKE_THREAD_SCALE_FACTOR`
+`SNOWFLAKE_HTTP_RETRIES`
 
 Once you have a client, make queries
 ```ruby
@@ -70,19 +79,20 @@ end
 
 # Configuration Options
 
-The client supports the following configuration options, each with their own getter/setter
+The client supports the following configuration options, each with their own getter/setter except connection pool options which must be set at construction. Additionally, all except logger can be configured with environment variables (see above, but the pattern is like: "SNOWFLAKE_HTTP_RETRIES".
 
-`logger` - takes any ruby logger (by default it's a std lib Logger.new(STDOUT), set at DEBUG level
-`jwt_token_ttl` - The time to live set on JWT token in seconds, defaults to 3600 (60 minutes, the longest Snowflake supports)
+`logger` - takes any ruby logger (by default it's a std lib Logger.new(STDOUT), set at DEBUG level. Not available as an ENV variable config option
+`log_level` - takes a log level, type is dependent on logger, for the default ruby Logger, use a level like `Logger::WARN`. Not available as an ENV variable config option.
+`jwt_token_ttl` - The time to live set on JWT token in seconds, defaults to 3540 (59 minutes, the longest Snowflake supports is 60)
 `connection_timeout` - The amount of time in seconds that the client's connection pool will wait before erroring in handing out a valid connection, defaults to 60 seconds
-`max_connections` - The maximum number of http connections to hold open in the connection pool. If you use the client in a threaded context, you may need to increase this to be threads * client.max_threads_per_query, defaults to 16
+`max_connections` - The maximum number of http connections to hold open in the connection pool. If you use the client in a threaded context, you may need to increase this to be threads * client.max_threads_per_query, defaults to 16. Can only be set on initialization.
 `max_threads_per_query` - The maximum number of threads the client should use to retreive data, per query, defaults to 8. If you want the client to act in a single threaded way, set this to 1
-`thread_scale_factor` - the factor used to decide when to spin up another thread. The default of 4 was determined experimentally, if you have high latency decreasing this might speed up overall speed for a large data set.
+`thread_scale_factor` - When downloading a result set into memory, thread count is calculated by dividing a query's partition count by this number. see code in client.rb
 `http_retries` - By default the client will retry common typically transient errors (http responses) twice, you can change the number of retries with this.
 
 Example configuration:
 ```ruby
-  client = RubySnowflake.connect
+  client = RubySnowflake::Client.from_env
   client.logger = Rails.logger
   client.max_connections = 24
   client.http_retries = 1

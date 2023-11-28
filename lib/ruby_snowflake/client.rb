@@ -41,8 +41,8 @@ module RubySnowflake
   class Client
     DEFAULT_LOGGER = Logger.new(STDOUT)
     DEFAULT_LOG_LEVEL = Logger::INFO
-    # seconds, this is the max supported by snowflake
-    DEFAULT_JWT_TOKEN_TTL = 3600
+    # seconds (59 min), this is the max supported by snowflake - 1 minute
+    DEFAULT_JWT_TOKEN_TTL = 3540
     # seconds, how long for a thread to wait for a connection before erroring
     DEFAULT_CONNECTION_TIMEOUT = 60
     # default maximum size of the http connection pool
@@ -55,10 +55,11 @@ module RubySnowflake
     # how many times to retry common retryable HTTP responses (i.e. 429, 504)
     DEFAULT_HTTP_RETRIES = 2
 
-    attr_accessor :logger, :jwt_token_ttl, :connection_timeout, :max_connections,
-                  :max_threads_per_query, :thread_scale_factor, :http_retries
+    # can't be set after initialization
+    attr_reader :connection_timeout, :max_connections
+    attr_accessor :logger, :jwt_token_ttl, :max_threads_per_query, :thread_scale_factor, :http_retries
 
-    def self.connect
+    def self.from_env
       private_key = ENV["SNOWFLAKE_PRIVATE_KEY"] || File.read(ENV["SNOWFLAKE_PRIVATE_KEY_PATH"])
 
       new(
@@ -68,10 +69,24 @@ module RubySnowflake
         ENV["SNOWFLAKE_ACCOUNT"],
         ENV["SNOWFLAKE_USER"],
         ENV["SNOWFLAKE_DEFAULT_WAREHOUSE"],
+        jwt_token_ttl: env_option("SNOWFLAKE_JWT_TOKEN_TTL", DEFAULT_JWT_TOKEN_TTL),
+        connection_timeout: env_option("SNOWFLAKE_CONNECTION_TIMEOUT", DEFAULT_CONNECTION_TIMEOUT ),
+        max_connections: env_option("SNOWFLAKE_MAX_CONNECTIONS", DEFAULT_MAX_CONNECTIONS ),
+        max_threads_per_query: env_option("SNOWFLAKE_MAX_THREADS_PER_QUERY", DEFAULT_MAX_THREADS_PER_QUERY),
+        thread_scale_factor: env_option("SNOWFLAKE_THREAD_SCALE_FACTOR", DEFAULT_THREAD_SCALE_FACTOR),
+        http_retries: env_option("SNOWFLAKE_HTTP_RETRIES", DEFAULT_HTTP_RETRIES),
       )
     end
 
-    def initialize(uri, private_key, organization, account, user, default_warehouse)
+    def initialize(uri, private_key, organization, account, user, default_warehouse,
+                   logger: DEFAULT_LOGGER,
+                   log_level: DEFAULT_LOG_LEVEL,
+                   jwt_token_ttl: DEFAULT_JWT_TOKEN_TTL,
+                   connection_timeout: DEFAULT_CONNECTION_TIMEOUT,
+                   max_connections: DEFAULT_MAX_CONNECTIONS,
+                   max_threads_per_query: DEFAULT_MAX_THREADS_PER_QUERY,
+                   thread_scale_factor: DEFAULT_THREAD_SCALE_FACTOR,
+                   http_retries: DEFAULT_HTTP_RETRIES)
       @base_uri = uri
       @private_key_pem = private_key
       @organization = organization
@@ -81,14 +96,14 @@ module RubySnowflake
       @public_key_fingerprint = public_key_fingerprint(@private_key_pem)
 
       # set defaults for config settings
-      @logger = DEFAULT_LOGGER
-      @logger.level = DEFAULT_LOG_LEVEL
-      @jwt_token_ttl = DEFAULT_JWT_TOKEN_TTL
-      @connection_timeout = DEFAULT_CONNECTION_TIMEOUT
-      @max_connections = DEFAULT_MAX_CONNECTIONS
-      @max_threads_per_query = DEFAULT_MAX_THREADS_PER_QUERY
-      @thread_scale_factor = DEFAULT_THREAD_SCALE_FACTOR
-      @http_retries = DEFAULT_HTTP_RETRIES
+      @logger = logger
+      @logger.level = log_level
+      @jwt_token_ttl = jwt_token_ttl
+      @connection_timeout = connection_timeout
+      @max_connections = max_connections
+      @max_threads_per_query = max_threads_per_query
+      @thread_scale_factor = thread_scale_factor
+      @http_retries = http_retries
 
       # start with an expired value to force creation
       @token_expires_at = Time.now.to_i - 1
@@ -111,6 +126,12 @@ module RubySnowflake
       end
       retreive_result_set(response, streaming)
     end
+
+    def self.env_option(env_var_name, default_value)
+      value = ENV[env_var_name]
+      value.nil? || value.empty? ? default_value : ENV[env_var_name].to_i
+    end
+    private_class_method :env_option
 
     private
       def connection_pool
