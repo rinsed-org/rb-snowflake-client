@@ -87,7 +87,7 @@ The client supports the following configuration options, each with their own get
 `connection_timeout` - The amount of time in seconds that the client's connection pool will wait before erroring in handing out a valid connection, defaults to 60 seconds
 `max_connections` - The maximum number of http connections to hold open in the connection pool. If you use the client in a threaded context, you may need to increase this to be threads * client.max_threads_per_query, defaults to 16. Can only be set on initialization.
 `max_threads_per_query` - The maximum number of threads the client should use to retreive data, per query, defaults to 8. If you want the client to act in a single threaded way, set this to 1
-`thread_scale_factor` - When downloading a result set into memory, thread count is calculated by dividing a query's partition count by this number. see code in client.rb
+`thread_scale_factor` - When downloading a result set into memory, thread count is calculated by dividing a query's partition count by this number. For details on implementation see the code in `client.rb`.
 `http_retries` - By default the client will retry common typically transient errors (http responses) twice, you can change the number of retries with this.
 
 Example configuration:

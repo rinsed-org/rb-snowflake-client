@@ -49,7 +49,7 @@ module RubySnowflake
     DEFAULT_MAX_CONNECTIONS = 16
     # default maximum size of the thread pool on a single query
     DEFAULT_MAX_THREADS_PER_QUERY = 8
-    # parition count factor for number of threads
+    # partition count factor for number of threads
     # (i.e. 2 == once we have 4 partitions, spin up a second thread)
     DEFAULT_THREAD_SCALE_FACTOR = 4
     # how many times to retry common retryable HTTP responses (i.e. 429, 504)
