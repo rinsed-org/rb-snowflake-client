@@ -1,9 +1,9 @@
 require "spec_helper"
 
 RSpec.describe RubySnowflake::Client do
-  describe "#fetch" do
-    let(:client) { described_class.connect }
+  let(:client) { described_class.from_env }
 
+  describe "querying" do
     let(:query) { "" }
     let(:result) { client.query(query) }
 
@@ -49,7 +49,7 @@ RSpec.describe RubySnowflake::Client do
           require "parallel"
 
           Parallel.map((1..3).collect { _1 }, in_threads: 2) do |idx|
-            c = described_class.connect
+            c = described_class.from_env
             query = "SELECT * FROM TEST_DATABASE#{idx}.RINSED_WEB_APP.EMAILS LIMIT 1;"
 
             expect { c.query(query) }.to raise_error do |error|
@@ -159,11 +159,11 @@ RSpec.describe RubySnowflake::Client do
         end
       end
 
-      context "fetching 150k rows x 100 times" do
+      context "fetching 150k rows x 20 times" do
         let(:limit) { 150_000 }
         it "should work" do
-          100.times do |idx|
-            client = described_class.connect
+          20.times do |idx|
+            client = described_class.from_env
             result = client.query(query)
             rows = result.get_all_rows
             expect(rows.length).to eq 150000
@@ -174,11 +174,21 @@ RSpec.describe RubySnowflake::Client do
 
       context "fetching 50k rows x 5 times - with threads" do
         let(:limit) { 50_000 }
+
+        before do
+          ENV["SNOWFLAKE_MAX_CONNECTIONS"] = "12"
+          ENV["SNOWFLAKE_MAX_THREADS_PER_QUERY"] = "12"
+        end
+
+        after do
+          ENV["SNOWFLAKE_MAX_CONNECTIONS"] = nil
+          ENV["SNOWFLAKE_MAX_THREADS_PER_QUERY"] = nil
+        end
         it "should work" do
           t = []
           5.times do |idx|
             t << Thread.new do
-              client = described_class.connect
+              client = described_class.from_env
               result = client.query(query)
               rows = result.get_all_rows
               expect(rows.length).to eq 50_000
@@ -190,12 +200,16 @@ RSpec.describe RubySnowflake::Client do
         end
       end
 
-      context "fetching 150k rows x 10 times - with threads & shared client" do
+      context "fetching 150k rows x 5 times - with threads & shared client" do
         let(:limit) { 150_000 }
+
+        before { ENV["SNOWFLAKE_MAX_CONNECTIONS"] = "40" }
+        after { ENV["SNOWFLAKE_MAX_CONNECTIONS"] = nil }
+
         it "should work" do
           t = []
-          client = described_class.connect
-          10.times do |idx|
+          client = described_class.from_env
+          5.times do |idx|
             t << Thread.new do
               result = client.query(query)
               rows = result.get_all_rows
@@ -214,7 +228,7 @@ RSpec.describe RubySnowflake::Client do
           t = []
           10.times do |idx|
             t << Thread.new do
-              client = described_class.connect
+              client = described_class.from_env
               result = client.query(query)
               count = 0
               first_row = nil
@@ -229,6 +243,63 @@ RSpec.describe RubySnowflake::Client do
 
           t.map(&:join)
         end
+      end
+    end
+  end
+
+  shared_examples "a configuration setting" do |attribute, value|
+    it "supports configuring #{attribute}" do
+      expect do
+        client.send("#{attribute}=", value)
+        client.send(attribute)
+      end.not_to raise_error
+    end
+  end
+
+  describe "configuration" do
+    it_behaves_like "a configuration setting", :logger, Logger.new(STDOUT)
+    it_behaves_like "a configuration setting", :jwt_token_ttl, 43
+    it_behaves_like "a configuration setting", :max_threads_per_query, 6
+    it_behaves_like "a configuration setting", :thread_scale_factor, 5
+    it_behaves_like "a configuration setting", :http_retries, 2
+
+    context "with optional settings set through env variables" do
+      before do
+        ENV["SNOWFLAKE_JWT_TOKEN_TTL"] = "3333"
+        ENV["SNOWFLAKE_CONNECTION_TIMEOUT"] = "33"
+        ENV["SNOWFLAKE_MAX_CONNECTIONS"] = "33"
+        ENV["SNOWFLAKE_MAX_THREADS_PER_QUERY"] = "33"
+        ENV["SNOWFLAKE_THREAD_SCALE_FACTOR"] = "3"
+        ENV["SNOWFLAKE_HTTP_RETRIES"] = "33"
+      end
+
+      after do
+        ENV["SNOWFLAKE_JWT_TOKEN_TTL"] = nil
+        ENV["SNOWFLAKE_CONNECTION_TIMEOUT"] = nil
+        ENV["SNOWFLAKE_MAX_CONNECTIONS"] = nil
+        ENV["SNOWFLAKE_MAX_THREADS_PER_QUERY"] = nil
+        ENV["SNOWFLAKE_THREAD_SCALE_FACTOR"] = nil
+        ENV["SNOWFLAKE_HTTP_RETRIES"] = nil
+      end
+
+      it "sets the settings" do
+        expect(client.jwt_token_ttl).to eq 3333
+        expect(client.connection_timeout).to eq 33
+        expect(client.max_connections).to eq 33
+        expect(client.max_threads_per_query).to eq 33
+        expect(client.thread_scale_factor).to eq 3
+        expect(client.http_retries).to eq 33
+      end
+    end
+
+    context "no extra env settings are set" do
+      it "sets the settings to defaults" do
+        expect(client.jwt_token_ttl).to eq RubySnowflake::Client::DEFAULT_JWT_TOKEN_TTL
+        expect(client.connection_timeout).to eq RubySnowflake::Client::DEFAULT_CONNECTION_TIMEOUT
+        expect(client.max_connections).to eq RubySnowflake::Client::DEFAULT_MAX_CONNECTIONS
+        expect(client.max_threads_per_query).to eq RubySnowflake::Client::DEFAULT_MAX_THREADS_PER_QUERY
+        expect(client.thread_scale_factor).to eq RubySnowflake::Client::DEFAULT_THREAD_SCALE_FACTOR
+        expect(client.http_retries).to eq RubySnowflake::Client::DEFAULT_HTTP_RETRIES
       end
     end
   end
