@@ -13,6 +13,8 @@ This library is implemented in ruby and while it leverages some libraries that h
 
 # Usage
 
+## Create a client
+
 Add to your Gemfile or use `gem install rb-snowflake-client`
 ```ruby
   gem "rb-snowflake-client"
@@ -55,6 +57,8 @@ Available ENV variables (see below in the config section for details)
 - `SNOWFLAKE_THREAD_SCALE_FACTOR`
 - `SNOWFLAKE_HTTP_RETRIES`
 
+## Make quieries
+
 Once you have a client, make queries
 ```ruby
 # will get all data in memory
@@ -66,7 +70,11 @@ result.each do |row|
   puts row["name"] # or case insensitive strings
   puts row.to_h    # and can produce a hash with keys/values
 end
+```
 
+## Stream results
+
+```ruby
 # You can also stream results and not hold them all in memory.
 # The client will prefetch the next data partition only. If you
 # have some IO in your processing there should usually be data
@@ -75,6 +83,14 @@ result = client.query("SELECT * FROM HUGETABLE", streaming: true)
 result.each do |row|
   puts row
 end
+```
+
+## Switching warehouses
+
+Clients are not warehouse specific, you can override the default warehouse per query
+
+```ruby
+client.query("SELECT * FROM BIGTABLE", warehouse: "FAST_WH")
 ```
 
 # Configuration Options
