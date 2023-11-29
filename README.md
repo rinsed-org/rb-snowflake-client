@@ -29,7 +29,7 @@ require "rb_snowflake_client"
 # see: https://github.com/rinsed-org/pure-ruby-snowflake-client/blob/master/lib/ruby_snowflake/client.rb#L43
 client = RubySnowflake::Client.new(
   "https://yourinstance.region.snowflakecomputing.com", # insert your URL here
-  File.read("secrets/my_key.pem"),                      # path to your private key
+  File.read("secrets/my_key.pem"),                      # your private key in PEM format (scroll down for instructions)
   "snowflake-organization",                             # your account name (doesn't match your URL)
   "snowflake-account",                                  # typically your subdomain
   "snowflake-user",                                     # Your snowflake user
@@ -108,11 +108,10 @@ The client supports the following configuration options, each with their own get
 
 Example configuration:
 ```ruby
-  client = RubySnowflake::Client.from_env
-  client.logger = Rails.logger
-  client.max_connections = 24
-  client.http_retries = 1
-end
+client = RubySnowflake::Client.from_env
+client.logger = Rails.logger
+client.max_connections = 24
+client.http_retries = 1
 ```
 
 # Gotchas
