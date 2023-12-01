@@ -56,7 +56,7 @@ Available ENV variables (see below in the config section for details)
 - `SNOWFLAKE_THREAD_SCALE_FACTOR`
 - `SNOWFLAKE_HTTP_RETRIES`
 
-## Make quieries
+## Make queries
 
 Once you have a client, make queries
 ```ruby
@@ -98,7 +98,7 @@ The client supports the following configuration options, each with their own get
 
 - `logger` - takes any ruby logger (by default it's a std lib Logger.new(STDOUT), set at DEBUG level. Not available as an ENV variable config option
 - `log_level` - takes a log level, type is dependent on logger, for the default ruby Logger, use a level like `Logger::WARN`. Not available as an ENV variable config option.
-- `jwt_token_ttl` - The time to live set on JWT token in seconds, defaults to 3540 (59 minutes, the longest Snowflake supports is 60). Can only be set on intialization.
+- `jwt_token_ttl` - The time to live set on JWT token in seconds, defaults to 3540 (59 minutes, the longest Snowflake supports is 60). Can only be set on initialization.
 - `connection_timeout` - The amount of time in seconds that the client's connection pool will wait before erroring in handing out a valid connection, defaults to 60 seconds
 - `max_connections` - The maximum number of http connections to hold open in the connection pool. If you use the client in a threaded context, you may need to increase this to be threads * client.max_threads_per_query, defaults to 16. Can only be set on initialization.
 - `max_threads_per_query` - The maximum number of threads the client should use to retreive data, per query, defaults to 8. If you want the client to act in a single threaded way, set this to 1
@@ -109,7 +109,6 @@ Example configuration:
 ```ruby
 client = RubySnowflake::Client.from_env
 client.logger = Rails.logger
-client.max_connections = 24
 client.http_retries = 1
 ```
 
