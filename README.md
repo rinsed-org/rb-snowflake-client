@@ -43,9 +43,8 @@ RubySnowflake::Client.from_env
 ```
 Available ENV variables (see below in the config section for details)
 - `SNOWFLAKE_URI`
-- `SNOWFLAKE_PRIVATE_KEY_PATH`
--    or (use either the key, or the path, key takes precedence if both are provided)
-- `SNOWFLAKE_PRIVATE_KEY`
+- `SNOWFLAKE_PRIVATE_KEY_PATH` or `SNOWFLAKE_PRIVATE_KEY`  
+  - Use either the key or the path. Key takes precedence if both are provided.
 - `SNOWFLAKE_ORGANIZATION`
 - `SNOWFLAKE_ACCOUNT`
 - `SNOWFLAKE_USER`
