@@ -127,6 +127,8 @@ module RubySnowflake
       retreive_result_set(response, streaming)
     end
 
+    alias fetch query
+
     def self.env_option(env_var_name, default_value)
       value = ENV[env_var_name]
       value.nil? || value.empty? ? default_value : ENV[env_var_name].to_i
