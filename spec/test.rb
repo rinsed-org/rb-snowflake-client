@@ -9,7 +9,9 @@ def new_client
     "GBLARLO",
     "OZA47907",
     "SNOWFLAKE_CLIENT_TEST",
-    "WEB_TEST_WH")
+    "WEB_TEST_WH",
+    ""
+  )
   client.logger.level = Logger::DEBUG
   client
 end
