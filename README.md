@@ -32,6 +32,7 @@ client = RubySnowflake::Client.new(
   "snowflake-account",                                  # typically your subdomain
   "snowflake-user",                                     # Your snowflake user
   "some_warehouse",                                     # The name of your warehouse to use by default
+  "some_database",                                      # The name of the database in the context of which the queries will run
   max_connections: 12,                                  # Config options can be passed in
   connection_timeout: 45,                               # See below for the full set of options
 )
@@ -48,6 +49,7 @@ Available ENV variables (see below in the config section for details)
 `SNOWFLAKE_ACCOUNT`
 `SNOWFLAKE_USER`
 `SNOWFLAKE_DEFAULT_WAREHOUSE`
+`SNOWFLAKE_DEFAULT_DATABASE`
 `SNOWFLAKE_JWT_TOKEN_TTL`
 `SNOWFLAKE_CONNECTION_TIMEOUT`
 `SNOWFLAKE_MAX_CONNECTIONS`
@@ -75,6 +77,14 @@ result = client.query("SELECT * FROM HUGETABLE", streaming: true)
 result.each do |row|
   puts row
 end
+
+
+# You can also overwrite the database specified in the initializer, and run
+# your query with a different context.
+result = client.query("SELECT * FROM SECRET_TABLE", database: "OTHER_DB")
+result.each do |row|
+  puts row
+end
 ```
 
 # Configuration Options
@@ -97,6 +107,7 @@ Example configuration:
   client.max_connections = 24
   client.http_retries = 1
 end
+```
 
 # Gotchas
 
@@ -153,6 +164,7 @@ client = RubySnowflake::Client.new(
   "snowflake-account",                                  # typically your subdomain
   "snowflake-user",                                     # Your snowflake user
   "some_warehouse",                                     # The name of your warehouse to use by default
+  "some_database",                                      # The name of the database in the context of which the queries will run
 )
 ```
 

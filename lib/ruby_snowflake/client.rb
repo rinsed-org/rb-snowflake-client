@@ -69,6 +69,7 @@ module RubySnowflake
         ENV["SNOWFLAKE_ACCOUNT"],
         ENV["SNOWFLAKE_USER"],
         ENV["SNOWFLAKE_DEFAULT_WAREHOUSE"],
+        ENV["SNOWFLAKE_DEFAULT_DATABASE"],
         jwt_token_ttl: env_option("SNOWFLAKE_JWT_TOKEN_TTL", DEFAULT_JWT_TOKEN_TTL),
         connection_timeout: env_option("SNOWFLAKE_CONNECTION_TIMEOUT", DEFAULT_CONNECTION_TIMEOUT ),
         max_connections: env_option("SNOWFLAKE_MAX_CONNECTIONS", DEFAULT_MAX_CONNECTIONS ),
@@ -78,15 +79,17 @@ module RubySnowflake
       )
     end
 
-    def initialize(uri, private_key, organization, account, user, default_warehouse,
-                   logger: DEFAULT_LOGGER,
-                   log_level: DEFAULT_LOG_LEVEL,
-                   jwt_token_ttl: DEFAULT_JWT_TOKEN_TTL,
-                   connection_timeout: DEFAULT_CONNECTION_TIMEOUT,
-                   max_connections: DEFAULT_MAX_CONNECTIONS,
-                   max_threads_per_query: DEFAULT_MAX_THREADS_PER_QUERY,
-                   thread_scale_factor: DEFAULT_THREAD_SCALE_FACTOR,
-                   http_retries: DEFAULT_HTTP_RETRIES)
+    def initialize(
+      uri, private_key, organization, account, user, default_warehouse, default_database,
+      logger: DEFAULT_LOGGER,
+      log_level: DEFAULT_LOG_LEVEL,
+      jwt_token_ttl: DEFAULT_JWT_TOKEN_TTL,
+      connection_timeout: DEFAULT_CONNECTION_TIMEOUT,
+      max_connections: DEFAULT_MAX_CONNECTIONS,
+      max_threads_per_query: DEFAULT_MAX_THREADS_PER_QUERY,
+      thread_scale_factor: DEFAULT_THREAD_SCALE_FACTOR,
+      http_retries: DEFAULT_HTTP_RETRIES
+    )
       @base_uri = uri
       @private_key_pem = private_key
       @organization = organization
@@ -94,6 +97,7 @@ module RubySnowflake
       @user = user
       @default_warehouse = default_warehouse
       @public_key_fingerprint = public_key_fingerprint(@private_key_pem)
+      @default_database = default_database
 
       # set defaults for config settings
       @logger = logger
@@ -110,12 +114,15 @@ module RubySnowflake
       @token_semaphore = Concurrent::Semaphore.new(1)
     end
 
-    def query(query, warehouse: nil, streaming: false)
+    def query(query, warehouse: nil, streaming: false, database: nil)
       warehouse ||= @default_warehouse
+      database ||= @default_database
 
       response = nil
       connection_pool.with do |connection|
-        request_body = { "statement" => query, "warehouse" => warehouse }
+        request_body = {
+          "statement" => query, "warehouse" => warehouse, "database" =>  database
+        }
 
         response = request_with_auth_and_headers(
           connection,

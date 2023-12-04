@@ -1,7 +1,13 @@
 PATH
   remote: .
   specs:
-    rb_snowflake_client (0.1.0)
+    rb_snowflake_client (0.1.2)
+      concurrent-ruby (>= 1.2)
+      connection_pool (>= 2.4)
+      dotenv (>= 2.8)
+      jwt (>= 2.7)
+      oj (>= 3.16)
+      retryable (>= 3.0)
 
 GEM
   remote: https://rubygems.org/
