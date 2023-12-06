@@ -7,6 +7,20 @@ RSpec.describe RubySnowflake::Client do
     let(:query) { "" }
     let(:result) { client.query(query) }
 
+    context "with the alias name `fetch`" do
+      let(:query) { "SELECT 1;" }
+      it "should work" do
+        result = client.fetch(query)
+
+        expect(result).to be_a(RubySnowflake::Result)
+        expect(result.length).to eq(1)
+        rows = result.get_all_rows
+        expect(rows).to eq(
+          [{"1" => 1}]
+        )
+      end
+    end
+
     context "when we can't connect" do
       before do
         allow(Net::HTTP).to receive(:start).and_raise("Some connection error")
