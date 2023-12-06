@@ -165,8 +165,13 @@ RSpec.describe RubySnowflake::Client do
       #   (ID, time_value, datetime_value, timestamp_value, timestamp_ltz_value,
       #    timestamp_ntz_value, timestamp_tz_value)
       # values
-      #  (1, '12:34:56', '2022-01-01 12:34:56', '2022-01-01 12:34:56.123',
-      #  '2022-01-01 12:34:56.123 -7:00', '2022-01-01 12:34:56.123', '2022-01-01 12:34:56.123 +9:00')
+      #  (1,
+      #   '12:34:56',                      -- time_value
+      #   '2022-01-01 12:34:56',           -- datetime_value
+      #   '2022-01-01 12:34:56.123',       -- timestamp_value
+      #   '2022-01-01 12:34:56.123 -7:00', -- timestamp_ltz_value
+      #   '2022-01-01 12:34:56.123',       -- timestamp_ntz_value
+      #   '2022-01-01 12:34:56.123 +9:00') -- timestamp_tz_value
       it "converts them into the correct ruby value" do
         row = client.query("SELECT * FROM ruby_snowflake_client_testing.public.time_test").first
         expect(row["time_value"].utc.iso8601).to eq "1970-01-01T12:34:56Z"
