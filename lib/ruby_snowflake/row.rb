@@ -42,7 +42,7 @@ module RubySnowflake
       # If there isn't one, it's just like this:
       #   "1641065696.123000000"
       # in all cases, the actual time, in UTC is the float value, and the offset is ignorable
-      when :time, :datetime, :timestamp, :timestamp_ntz, :timestamp_ltz, :timestamp_tz, :timeztamp_ltz
+      when :time, :datetime, :timestamp, :timestamp_ntz, :timestamp_ltz, :timestamp_tz
         Time.strptime(@data[index], TIME_FORMAT).utc
       else
         @data[index]
