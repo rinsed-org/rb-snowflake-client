@@ -1,14 +1,17 @@
 require "benchmark"
 require "rb_snowflake_client"
+require 'dotenv/load'
 
 def new_client
   client = RubySnowflake::Client.new(
     "https://oza47907.us-east-1.snowflakecomputing.com",
+    ENV["SNOWFLAKE_PRIVATE_KEY"], # set this in your .env file
     "GBLARLO",
     "OZA47907",
     "SNOWFLAKE_CLIENT_TEST",
-    "SHA256:pbfmeTQ2+MestU2J9dXjGXTjtvZprYfHxzZzqqcIhFc=",
-    "WEB_TEST_WH")
+    "WEB_TEST_WH",
+    ""
+  )
   client.logger.level = Logger::DEBUG
   client
 end

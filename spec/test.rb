@@ -1,6 +1,7 @@
 require "benchmark"
 require "logger"
 require "rb_snowflake_client"
+require "dotenv/load"
 
 def new_client
   client = RubySnowflake::Client.new(
