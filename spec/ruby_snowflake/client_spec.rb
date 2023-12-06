@@ -285,20 +285,42 @@ RSpec.describe RubySnowflake::Client do
     end
   end
 
-  shared_examples "a configuration setting" do |attribute, value|
-    it "supports configuring #{attribute}" do
+  shared_examples "a configuration setting" do |attribute, value, attr_reader_available|
+    let!(:args) do
+      { attribute => value}
+    end
+
+    it "supports configuring #{attribute} via from_env" do
       expect do
-        client.send("#{attribute}=", value)
-        client.send(attribute)
+        new_client = described_class.from_env(**args)
+        expect(new_client.send(attribute)).to eq(value) if attr_reader_available
+      end.not_to raise_error
+    end
+
+    it "supports configuring #{attribute} via new" do
+      expect do
+        new_client = described_class.new("https://blah.snowflake",
+                                         "MYPEMKEY",
+                                         "MYORG",
+                                         "ACCOUNT",
+                                         "USER",
+                                         "MYWAREHOUSE",
+                                         "MYDB",
+                                         **args)
+        expect(new_client.send(attribute)).to eq(value) if attr_reader_available
       end.not_to raise_error
     end
   end
 
   describe "configuration" do
     it_behaves_like "a configuration setting", :logger, Logger.new(STDOUT)
+    it_behaves_like "a configuration setting", :log_level, Logger::WARN, false
+    it_behaves_like "a configuration setting", :jwt_token_ttl, 44
+    it_behaves_like "a configuration setting", :connection_timeout, 42
     it_behaves_like "a configuration setting", :max_threads_per_query, 6
     it_behaves_like "a configuration setting", :thread_scale_factor, 5
     it_behaves_like "a configuration setting", :http_retries, 2
+
 
     context "with optional settings set through env variables" do
       before do

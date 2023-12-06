@@ -57,10 +57,16 @@ module RubySnowflake
     OJ_OPTIONS = { :bigdecimal_load => :bigdecimal }.freeze
 
     # can't be set after initialization
-    attr_reader :connection_timeout, :max_connections
-    attr_accessor :logger, :max_threads_per_query, :thread_scale_factor, :http_retries
+    attr_reader :connection_timeout, :max_connections, :logger, :max_threads_per_query, :thread_scale_factor, :http_retries
 
-    def self.from_env
+    def self.from_env(logger: DEFAULT_LOGGER,
+                      log_level: DEFAULT_LOG_LEVEL,
+                      jwt_token_ttl: env_option("SNOWFLAKE_JWT_TOKEN_TTL", DEFAULT_JWT_TOKEN_TTL),
+                      connection_timeout: env_option("SNOWFLAKE_CONNECTION_TIMEOUT", DEFAULT_CONNECTION_TIMEOUT ),
+                      max_connections: env_option("SNOWFLAKE_MAX_CONNECTIONS", DEFAULT_MAX_CONNECTIONS ),
+                      max_threads_per_query: env_option("SNOWFLAKE_MAX_THREADS_PER_QUERY", DEFAULT_MAX_THREADS_PER_QUERY),
+                      thread_scale_factor: env_option("SNOWFLAKE_THREAD_SCALE_FACTOR", DEFAULT_THREAD_SCALE_FACTOR),
+                      http_retries: env_option("SNOWFLAKE_HTTP_RETRIES", DEFAULT_HTTP_RETRIES))
       private_key = ENV["SNOWFLAKE_PRIVATE_KEY"] || File.read(ENV["SNOWFLAKE_PRIVATE_KEY_PATH"])
 
       new(
@@ -71,12 +77,14 @@ module RubySnowflake
         ENV["SNOWFLAKE_USER"],
         ENV["SNOWFLAKE_DEFAULT_WAREHOUSE"],
         ENV["SNOWFLAKE_DEFAULT_DATABASE"],
-        jwt_token_ttl: env_option("SNOWFLAKE_JWT_TOKEN_TTL", DEFAULT_JWT_TOKEN_TTL),
-        connection_timeout: env_option("SNOWFLAKE_CONNECTION_TIMEOUT", DEFAULT_CONNECTION_TIMEOUT ),
-        max_connections: env_option("SNOWFLAKE_MAX_CONNECTIONS", DEFAULT_MAX_CONNECTIONS ),
-        max_threads_per_query: env_option("SNOWFLAKE_MAX_THREADS_PER_QUERY", DEFAULT_MAX_THREADS_PER_QUERY),
-        thread_scale_factor: env_option("SNOWFLAKE_THREAD_SCALE_FACTOR", DEFAULT_THREAD_SCALE_FACTOR),
-        http_retries: env_option("SNOWFLAKE_HTTP_RETRIES", DEFAULT_HTTP_RETRIES),
+        logger: logger,
+        log_level: log_level,
+        jwt_token_ttl: jwt_token_ttl,
+        connection_timeout: connection_timeout,
+        max_connections: max_connections,
+        max_threads_per_query: max_threads_per_query,
+        thread_scale_factor: thread_scale_factor,
+        http_retries: http_retries,
       )
     end
 

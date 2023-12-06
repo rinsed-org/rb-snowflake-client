@@ -75,19 +75,20 @@ end
 
 ## Stream results
 
+You can also stream results and not hold them all in memory. The client will prefetch the next data partition only. If you have some IO in your processing there should usually be data available for you.
+
 ```ruby
-# You can also stream results and not hold them all in memory.
-# The client will prefetch the next data partition only. If you
-# have some IO in your processing there should usually be data
-# available for you.
 result = client.query("SELECT * FROM HUGETABLE", streaming: true)
 result.each do |row|
   puts row
 end
+```
 
+## Switching databases
 
-# You can also overwrite the database specified in the initializer, and run
-# your query with a different context.
+You can also overwrite the database specified in the initializer, and run your query with a different context.
+
+```ruby
 result = client.query("SELECT * FROM SECRET_TABLE", database: "OTHER_DB")
 result.each do |row|
   puts row
@@ -104,23 +105,24 @@ client.query("SELECT * FROM BIGTABLE", warehouse: "FAST_WH")
 
 # Configuration Options
 
-The client supports the following configuration options, each with their own getter/setter except connection pool options which must be set at construction. Additionally, all except logger can be configured with environment variables (see above, but the pattern is like: "SNOWFLAKE_HTTP_RETRIES".
+The client supports the following configuration options, each with their own getter/setter except connection pool options which must be set at construction. Additionally, all except logger can be configured with environment variables (see above, but the pattern is like: "SNOWFLAKE_HTTP_RETRIES". Configuration options can only be set on initiialization through `new` or `from_env`.
 
 - `logger` - takes any ruby logger (by default it's a std lib Logger.new(STDOUT), set at DEBUG level. Not available as an ENV variable config option
 - `log_level` - takes a log level, type is dependent on logger, for the default ruby Logger, use a level like `Logger::WARN`. Not available as an ENV variable config option.
-- `jwt_token_ttl` - The time to live set on JWT token in seconds, defaults to 3540 (59 minutes, the longest Snowflake supports is 60). Can only be set on initialization.
+- `jwt_token_ttl` - The time to live set on JWT token in seconds, defaults to 3540 (59 minutes, the longest Snowflake supports is 60).
 - `connection_timeout` - The amount of time in seconds that the client's connection pool will wait before erroring in handing out a valid connection, defaults to 60 seconds
-- `max_connections` - The maximum number of http connections to hold open in the connection pool. If you use the client in a threaded context, you may need to increase this to be threads * client.max_threads_per_query, defaults to 16. Can only be set on initialization.
+- `max_connections` - The maximum number of http connections to hold open in the connection pool. If you use the client in a threaded context, you may need to increase this to be threads * client.max_threads_per_query, defaults to 16.
 - `max_threads_per_query` - The maximum number of threads the client should use to retreive data, per query, defaults to 8. If you want the client to act in a single threaded way, set this to 1
 - `thread_scale_factor` - When downloading a result set into memory, thread count is calculated by dividing a query's partition count by this number. For details on implementation see the code in `client.rb`.
 - `http_retries` - By default the client will retry common typically transient errors (http responses) twice, you can change the number of retries with this.
 
 Example configuration:
 ```ruby
-  client = RubySnowflake::Client.from_env
-  client.logger = Rails.logger
-  client.max_connections = 24
-  client.http_retries = 1
+  client = RubySnowflake::Client.from_env(
+    logger: Rails.logger
+    max_connections: 24
+    http_retries 1
+  )
 end
 ```
 
