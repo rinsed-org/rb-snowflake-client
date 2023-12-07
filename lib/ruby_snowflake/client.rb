@@ -5,22 +5,21 @@ require "benchmark"
 require "concurrent"
 require "connection_pool"
 require "json"
-require "jwt"
 require "logger"
 require "net/http"
 require "oj"
-require "openssl"
 require "retryable"
 require "securerandom"
 require "uri"
 
 
-require_relative "result"
-require_relative "streaming_result"
 require_relative "client/http_connection_wrapper"
+require_relative "client/key_pair_jwt_auth_manager"
 require_relative "client/single_thread_in_memory_strategy"
 require_relative "client/streaming_result_strategy"
 require_relative "client/threaded_in_memory_strategy"
+require_relative "result"
+require_relative "streaming_result"
 
 module RubySnowflake
   class Error < StandardError
@@ -55,11 +54,19 @@ module RubySnowflake
     # how many times to retry common retryable HTTP responses (i.e. 429, 504)
     DEFAULT_HTTP_RETRIES = 2
 
-    # can't be set after initialization
-    attr_reader :connection_timeout, :max_connections
-    attr_accessor :logger, :jwt_token_ttl, :max_threads_per_query, :thread_scale_factor, :http_retries
+    OJ_OPTIONS = { :bigdecimal_load => :bigdecimal }.freeze
 
-    def self.from_env
+    # can't be set after initialization
+    attr_reader :connection_timeout, :max_connections, :logger, :max_threads_per_query, :thread_scale_factor, :http_retries
+
+    def self.from_env(logger: DEFAULT_LOGGER,
+                      log_level: DEFAULT_LOG_LEVEL,
+                      jwt_token_ttl: env_option("SNOWFLAKE_JWT_TOKEN_TTL", DEFAULT_JWT_TOKEN_TTL),
+                      connection_timeout: env_option("SNOWFLAKE_CONNECTION_TIMEOUT", DEFAULT_CONNECTION_TIMEOUT ),
+                      max_connections: env_option("SNOWFLAKE_MAX_CONNECTIONS", DEFAULT_MAX_CONNECTIONS ),
+                      max_threads_per_query: env_option("SNOWFLAKE_MAX_THREADS_PER_QUERY", DEFAULT_MAX_THREADS_PER_QUERY),
+                      thread_scale_factor: env_option("SNOWFLAKE_THREAD_SCALE_FACTOR", DEFAULT_THREAD_SCALE_FACTOR),
+                      http_retries: env_option("SNOWFLAKE_HTTP_RETRIES", DEFAULT_HTTP_RETRIES))
       private_key = ENV["SNOWFLAKE_PRIVATE_KEY"] || File.read(ENV["SNOWFLAKE_PRIVATE_KEY_PATH"])
 
       new(
@@ -70,12 +77,14 @@ module RubySnowflake
         ENV["SNOWFLAKE_USER"],
         ENV["SNOWFLAKE_DEFAULT_WAREHOUSE"],
         ENV["SNOWFLAKE_DEFAULT_DATABASE"],
-        jwt_token_ttl: env_option("SNOWFLAKE_JWT_TOKEN_TTL", DEFAULT_JWT_TOKEN_TTL),
-        connection_timeout: env_option("SNOWFLAKE_CONNECTION_TIMEOUT", DEFAULT_CONNECTION_TIMEOUT ),
-        max_connections: env_option("SNOWFLAKE_MAX_CONNECTIONS", DEFAULT_MAX_CONNECTIONS ),
-        max_threads_per_query: env_option("SNOWFLAKE_MAX_THREADS_PER_QUERY", DEFAULT_MAX_THREADS_PER_QUERY),
-        thread_scale_factor: env_option("SNOWFLAKE_THREAD_SCALE_FACTOR", DEFAULT_THREAD_SCALE_FACTOR),
-        http_retries: env_option("SNOWFLAKE_HTTP_RETRIES", DEFAULT_HTTP_RETRIES),
+        logger: logger,
+        log_level: log_level,
+        jwt_token_ttl: jwt_token_ttl,
+        connection_timeout: connection_timeout,
+        max_connections: max_connections,
+        max_threads_per_query: max_threads_per_query,
+        thread_scale_factor: thread_scale_factor,
+        http_retries: http_retries,
       )
     end
 
@@ -91,27 +100,19 @@ module RubySnowflake
       http_retries: DEFAULT_HTTP_RETRIES
     )
       @base_uri = uri
-      @private_key_pem = private_key
-      @organization = organization
-      @account = account
-      @user = user
+      @key_pair_jwt_auth_manager =
+        KeyPairJwtAuthManager.new(organization, account, user, private_key, jwt_token_ttl)
       @default_warehouse = default_warehouse
-      @public_key_fingerprint = public_key_fingerprint(@private_key_pem)
       @default_database = default_database
 
       # set defaults for config settings
       @logger = logger
       @logger.level = log_level
-      @jwt_token_ttl = jwt_token_ttl
       @connection_timeout = connection_timeout
       @max_connections = max_connections
       @max_threads_per_query = max_threads_per_query
       @thread_scale_factor = thread_scale_factor
       @http_retries = http_retries
-
-      # start with an expired value to force creation
-      @token_expires_at = Time.now.to_i - 1
-      @token_semaphore = Concurrent::Semaphore.new(1)
     end
 
     def query(query, warehouse: nil, streaming: false, database: nil)
@@ -157,28 +158,11 @@ module RubySnowflake
         @port ||= URI.parse(@base_uri).port
       end
 
-      def jwt_token
-        return @token unless jwt_token_expired?
-
-        @token_semaphore.acquire do
-          now = Time.now.to_i
-          @token_expires_at = now + @jwt_token_ttl
-
-          private_key = OpenSSL::PKey.read(@private_key_pem)
-
-          payload = {
-            :iss => "#{@organization.upcase}-#{@account.upcase}.#{@user}.#{@public_key_fingerprint}",
-            :sub => "#{@organization.upcase}-#{@account.upcase}.#{@user}",
-            :iat => now,
-            :exp => @token_expires_at
-          }
-
-          @token = JWT.encode payload, private_key, "RS256"
+      def handle_errors(response)
+        if response.code != "200"
+          raise BadResponseError.new({}),
+            "Bad response! Got code: #{response.code}, w/ message #{response.body}"
         end
-      end
-
-      def jwt_token_expired?
-        Time.now.to_i > @token_expires_at
       end
 
       def request_with_auth_and_headers(connection, request_class, path, body=nil)
@@ -186,7 +170,7 @@ module RubySnowflake
         request = request_class.new(uri)
         request["Content-Type"] = "application/json"
         request["Accept"] = "application/json"
-        request["Authorization"] = "Bearer #{jwt_token}"
+        request["Authorization"] = "Bearer #{@key_pair_jwt_auth_manager.jwt_token}"
         request["X-Snowflake-Authorization-Token-Type"] = "KEYPAIR_JWT"
         request.body = body unless body.nil?
 
@@ -230,7 +214,7 @@ module RubySnowflake
       end
 
       def retreive_result_set(response, streaming)
-        json_body = Oj.load(response.body, oj_options)
+        json_body = Oj.load(response.body, OJ_OPTIONS)
         statement_handle = json_body["statementHandle"]
         num_threads = number_of_threads_to_use(json_body["resultSetMetaData"]["partitionInfo"].size)
         retreive_proc = ->(index) { retreive_partition_data(statement_handle, index) }
@@ -254,8 +238,8 @@ module RubySnowflake
           )
         end
 
-        partition_json = nil
-        bm = Benchmark.measure { partition_json = Oj.load(partition_response.body, oj_options) }
+        partition_json = {}
+        bm = Benchmark.measure { partition_json = Oj.load(partition_response.body, OJ_OPTIONS) }
         logger.debug { "JSON parsing took: #{bm.real}" }
         partition_data = partition_json["data"]
 
@@ -264,18 +248,6 @@ module RubySnowflake
 
       def number_of_threads_to_use(partition_count)
         [[1, (partition_count / @thread_scale_factor.to_f).ceil].max, @max_threads_per_query].min
-      end
-
-      def oj_options
-        { :bigdecimal_load => :bigdecimal }
-      end
-
-      def public_key_fingerprint(private_key_pem_string)
-        public_key_der = OpenSSL::PKey::RSA.new(private_key_pem_string).public_key.to_der
-        digest = OpenSSL::Digest::SHA256.new.digest(public_key_der)
-        fingerprint = Base64.strict_encode64(digest)
-
-        "SHA256:#{fingerprint}"
       end
   end
 end

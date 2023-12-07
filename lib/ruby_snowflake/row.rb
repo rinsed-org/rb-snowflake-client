@@ -31,14 +31,19 @@ module RubySnowflake
         else
           BigDecimal(@data[index]).round(@row_types[index][:scale])
         end
+
+      # snowflake treats these all as 64 bit IEEE 754 floating point numbers, and will we too
       when :float, :double, :"double precision", :real
-        # snowflake treats these all as 64 bit IEEE 754 floating point numbers, and will we too
         Float(@data[index])
-      when :time, :datetime, :timestamp, :timestamp_ltz, :timestamp_ntz
+
+      # Despite snowflake indicating that it sends the offset in minutes, the actual time in UTC
+      # is always sent in the first half of the data. If an offset is sent it looks like:
+      #   "1641008096.123000000 1980"
+      # If there isn't one, it's just like this:
+      #   "1641065696.123000000"
+      # in all cases, the actual time, in UTC is the float value, and the offset is ignorable
+      when :time, :datetime, :timestamp, :timestamp_ntz, :timestamp_ltz, :timestamp_tz
         Time.strptime(@data[index], TIME_FORMAT).utc
-      when :timestamp_tz
-        timestamp, offset_minutes = @data[index].split(" ")
-        Time.strptime(@data[index], TIME_FORMAT).utc - (Integer(offset_minutes) * 60)
       else
         @data[index]
       end

@@ -154,6 +154,35 @@ RSpec.describe RubySnowflake::Client do
       end
     end
 
+    context "with all the time types" do
+      # We have setup a simple table for testing these, created with:
+      # CREATE TABLE ruby_snowflake_client_testing.public.time_test
+      #  (ID int PRIMARY KEY, time_value TIME, datetime_value DATETIME, timestamp_value TIMESTAMP,
+      #   timestamp_ltz_value TIMESTAMP_LTZ, timestamp_ntz_value TIMESTAMP_NTZ,
+      #   timestamp_tz_value TIMESTAMP_TZ);
+      # And then ran an insert:
+      # INSERT INTO ruby_snowflake_client_testing.public.time_test
+      #   (ID, time_value, datetime_value, timestamp_value, timestamp_ltz_value,
+      #    timestamp_ntz_value, timestamp_tz_value)
+      # values
+      #  (1,
+      #   '12:34:56',                      -- time_value
+      #   '2022-01-01 12:34:56',           -- datetime_value
+      #   '2022-01-01 12:34:56.123',       -- timestamp_value
+      #   '2022-01-01 12:34:56.123 -7:00', -- timestamp_ltz_value
+      #   '2022-01-01 12:34:56.123',       -- timestamp_ntz_value
+      #   '2022-01-01 12:34:56.123 +9:00') -- timestamp_tz_value
+      it "converts them into the correct ruby value" do
+        row = client.query("SELECT * FROM ruby_snowflake_client_testing.public.time_test").first
+        expect(row["time_value"].utc.iso8601).to eq "1970-01-01T12:34:56Z"
+        expect(row["datetime_value"].utc.iso8601).to eq "2022-01-01T12:34:56Z"
+        expect(row["timestamp_value"].utc.iso8601).to eq "2022-01-01T12:34:56Z"
+        expect(row["timestamp_ntz_value"].utc.iso8601).to eq "2022-01-01T12:34:56Z"
+        expect(row["timestamp_ltz_value"].utc.iso8601).to eq "2022-01-01T19:34:56Z"
+        expect(row["timestamp_tz_value"].utc.iso8601).to eq "2022-01-01T03:34:56Z"
+      end
+    end
+
     context "with a large amount of data" do
       # We have setup a very simple table with the below statement:
       # CREATE TABLE ruby_snowflake_client_testing.public.large_table (ID int PRIMARY KEY, random_text string);
@@ -261,21 +290,42 @@ RSpec.describe RubySnowflake::Client do
     end
   end
 
-  shared_examples "a configuration setting" do |attribute, value|
-    it "supports configuring #{attribute}" do
+  shared_examples "a configuration setting" do |attribute, value, attr_reader_available|
+    let!(:args) do
+      { attribute => value}
+    end
+
+    it "supports configuring #{attribute} via from_env" do
       expect do
-        client.send("#{attribute}=", value)
-        client.send(attribute)
+        new_client = described_class.from_env(**args)
+        expect(new_client.send(attribute)).to eq(value) if attr_reader_available
+      end.not_to raise_error
+    end
+
+    it "supports configuring #{attribute} via new" do
+      expect do
+        new_client = described_class.new("https://blah.snowflake",
+                                         "MYPEMKEY",
+                                         "MYORG",
+                                         "ACCOUNT",
+                                         "USER",
+                                         "MYWAREHOUSE",
+                                         "MYDB",
+                                         **args)
+        expect(new_client.send(attribute)).to eq(value) if attr_reader_available
       end.not_to raise_error
     end
   end
 
   describe "configuration" do
     it_behaves_like "a configuration setting", :logger, Logger.new(STDOUT)
-    it_behaves_like "a configuration setting", :jwt_token_ttl, 43
+    it_behaves_like "a configuration setting", :log_level, Logger::WARN, false
+    it_behaves_like "a configuration setting", :jwt_token_ttl, 44
+    it_behaves_like "a configuration setting", :connection_timeout, 42
     it_behaves_like "a configuration setting", :max_threads_per_query, 6
     it_behaves_like "a configuration setting", :thread_scale_factor, 5
     it_behaves_like "a configuration setting", :http_retries, 2
+
 
     context "with optional settings set through env variables" do
       before do
@@ -297,7 +347,8 @@ RSpec.describe RubySnowflake::Client do
       end
 
       it "sets the settings" do
-        expect(client.jwt_token_ttl).to eq 3333
+        expect(client.instance_variable_get(:@key_pair_jwt_auth_manager).
+                 instance_variable_get(:@jwt_token_ttl)).to eq 3333
         expect(client.connection_timeout).to eq 33
         expect(client.max_connections).to eq 33
         expect(client.max_threads_per_query).to eq 33
@@ -308,7 +359,9 @@ RSpec.describe RubySnowflake::Client do
 
     context "no extra env settings are set" do
       it "sets the settings to defaults" do
-        expect(client.jwt_token_ttl).to eq RubySnowflake::Client::DEFAULT_JWT_TOKEN_TTL
+        expect(client.instance_variable_get(:@key_pair_jwt_auth_manager).
+                 instance_variable_get(:@jwt_token_ttl)
+              ).to eq RubySnowflake::Client::DEFAULT_JWT_TOKEN_TTL
         expect(client.connection_timeout).to eq RubySnowflake::Client::DEFAULT_CONNECTION_TIMEOUT
         expect(client.max_connections).to eq RubySnowflake::Client::DEFAULT_MAX_CONNECTIONS
         expect(client.max_threads_per_query).to eq RubySnowflake::Client::DEFAULT_MAX_THREADS_PER_QUERY
