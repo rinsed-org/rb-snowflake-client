@@ -34,6 +34,26 @@ RSpec.describe RubySnowflake::Client do
       end
     end
 
+    context "when the query times out" do
+      before do
+        ENV["SNOWFLAKE_QUERY_TIMEOUT"] = "1"
+        client.instance_variable_set(:@_enable_polling_queries, true)
+      end
+      after { ENV["SNOWFLAKE_MAX_CONNECTIONS"] = nil }
+      let(:query) { "SELECT SYSTEM$WAIT(10)" }
+
+      it "attempts to cancel the query" do
+        allow(client.logger).to receive(:error)
+
+        start_time = Time.now.to_i
+        expect { result }.to raise_error do |error|
+          expect(error).to be_a RubySnowflake::QueryTimeoutError
+        end
+        expect(client.logger).not_to have_received(:error).with(a_string_including("cancel query"))
+        expect(Time.now.to_i - start_time).to be_between(1.0, 5)
+      end
+    end
+
     context "when the query errors" do
       let(:query) { "INVALID QUERY;" }
       it "should raise an exception" do
@@ -202,6 +222,17 @@ RSpec.describe RubySnowflake::Client do
         end
       end
 
+      context "with async (polling) responses" do
+        before { client.instance_variable_set(:@_enable_polling_queries, true) }
+
+        let(:limit) { 50_000 }
+        it "should work" do
+          rows = result.get_all_rows
+          expect(rows.length).to eq 50000
+          expect((-50000...50000)).to include(rows[0]["id"].to_i)
+        end
+      end
+
       context "fetching 150k rows x 20 times" do
         let(:limit) { 150_000 }
         it "should work" do
@@ -265,6 +296,32 @@ RSpec.describe RubySnowflake::Client do
         end
       end
 
+      context "with async (polling) responses" do
+        before { client.instance_variable_set(:@_enable_polling_queries, true) }
+
+        context "fetching 50k rows x 5 times - with threads & shared client" do
+          let(:limit) { 50_000 }
+
+          before { ENV["SNOWFLAKE_MAX_CONNECTIONS"] = "40" }
+          after { ENV["SNOWFLAKE_MAX_CONNECTIONS"] = nil }
+
+          it "should work" do
+            t = []
+            client = described_class.from_env
+            5.times do |idx|
+              t << Thread.new do
+                result = client.query(query)
+                rows = result.get_all_rows
+                expect(rows.length).to eq 50_000
+                expect((-50000...50000)).to include(rows[0]["id"].to_i)
+              end
+            end
+
+            t.map(&:join)
+          end
+        end
+      end
+
       context "fetching 150k rows x 10 times - with streaming" do
         let(:limit) { 150_000 }
         it "should work" do
@@ -325,6 +382,7 @@ RSpec.describe RubySnowflake::Client do
     it_behaves_like "a configuration setting", :max_threads_per_query, 6
     it_behaves_like "a configuration setting", :thread_scale_factor, 5
     it_behaves_like "a configuration setting", :http_retries, 2
+    it_behaves_like "a configuration setting", :query_timeout, 2000
 
 
     context "with optional settings set through env variables" do
@@ -335,6 +393,7 @@ RSpec.describe RubySnowflake::Client do
         ENV["SNOWFLAKE_MAX_THREADS_PER_QUERY"] = "33"
         ENV["SNOWFLAKE_THREAD_SCALE_FACTOR"] = "3"
         ENV["SNOWFLAKE_HTTP_RETRIES"] = "33"
+        ENV["SNOWFLAKE_QUERY_TIMEOUT"] = "3333"
       end
 
       after do
@@ -344,6 +403,7 @@ RSpec.describe RubySnowflake::Client do
         ENV["SNOWFLAKE_MAX_THREADS_PER_QUERY"] = nil
         ENV["SNOWFLAKE_THREAD_SCALE_FACTOR"] = nil
         ENV["SNOWFLAKE_HTTP_RETRIES"] = nil
+        ENV["SNOWFLAKE_QUERY_TIMEOUT"] = nil
       end
 
       it "sets the settings" do
@@ -354,6 +414,7 @@ RSpec.describe RubySnowflake::Client do
         expect(client.max_threads_per_query).to eq 33
         expect(client.thread_scale_factor).to eq 3
         expect(client.http_retries).to eq 33
+        expect(client.query_timeout).to eq 3333
       end
     end
 

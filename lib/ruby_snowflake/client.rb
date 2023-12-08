@@ -12,7 +12,6 @@ require "retryable"
 require "securerandom"
 require "uri"
 
-
 require_relative "client/http_connection_wrapper"
 require_relative "client/key_pair_jwt_auth_manager"
 require_relative "client/single_thread_in_memory_strategy"
@@ -36,6 +35,7 @@ module RubySnowflake
   class ConnectionStarvedError < Error ; end
   class RetryableBadResponseError < Error ; end
   class RequestError < Error ; end
+  class QueryTimeoutError < Error ;  end
 
   class Client
     DEFAULT_LOGGER = Logger.new(STDOUT)
@@ -53,11 +53,16 @@ module RubySnowflake
     DEFAULT_THREAD_SCALE_FACTOR = 4
     # how many times to retry common retryable HTTP responses (i.e. 429, 504)
     DEFAULT_HTTP_RETRIES = 2
+    # how long to wait to allow a query to complete, in seconds
+    DEFAULT_QUERY_TIMEOUT = 600 # 10 minutes
 
     OJ_OPTIONS = { :bigdecimal_load => :bigdecimal }.freeze
+    VALID_RESPONSE_CODES = %w(200 202).freeze
+    POLLING_RESPONSE_CODE = "202"
+    POLLING_INTERVAL = 2 # seconds
 
     # can't be set after initialization
-    attr_reader :connection_timeout, :max_connections, :logger, :max_threads_per_query, :thread_scale_factor, :http_retries
+    attr_reader :connection_timeout, :max_connections, :logger, :max_threads_per_query, :thread_scale_factor, :http_retries, :query_timeout
 
     def self.from_env(logger: DEFAULT_LOGGER,
                       log_level: DEFAULT_LOG_LEVEL,
@@ -66,7 +71,8 @@ module RubySnowflake
                       max_connections: env_option("SNOWFLAKE_MAX_CONNECTIONS", DEFAULT_MAX_CONNECTIONS ),
                       max_threads_per_query: env_option("SNOWFLAKE_MAX_THREADS_PER_QUERY", DEFAULT_MAX_THREADS_PER_QUERY),
                       thread_scale_factor: env_option("SNOWFLAKE_THREAD_SCALE_FACTOR", DEFAULT_THREAD_SCALE_FACTOR),
-                      http_retries: env_option("SNOWFLAKE_HTTP_RETRIES", DEFAULT_HTTP_RETRIES))
+                      http_retries: env_option("SNOWFLAKE_HTTP_RETRIES", DEFAULT_HTTP_RETRIES),
+                      query_timeout: env_option("SNOWFLAKE_QUERY_TIMEOUT", DEFAULT_QUERY_TIMEOUT))
       private_key = ENV["SNOWFLAKE_PRIVATE_KEY"] || File.read(ENV["SNOWFLAKE_PRIVATE_KEY_PATH"])
 
       new(
@@ -85,6 +91,7 @@ module RubySnowflake
         max_threads_per_query: max_threads_per_query,
         thread_scale_factor: thread_scale_factor,
         http_retries: http_retries,
+        query_timeout: query_timeout,
       )
     end
 
@@ -97,7 +104,8 @@ module RubySnowflake
       max_connections: DEFAULT_MAX_CONNECTIONS,
       max_threads_per_query: DEFAULT_MAX_THREADS_PER_QUERY,
       thread_scale_factor: DEFAULT_THREAD_SCALE_FACTOR,
-      http_retries: DEFAULT_HTTP_RETRIES
+      http_retries: DEFAULT_HTTP_RETRIES,
+      query_timeout: DEFAULT_QUERY_TIMEOUT
     )
       @base_uri = uri
       @key_pair_jwt_auth_manager =
@@ -113,26 +121,33 @@ module RubySnowflake
       @max_threads_per_query = max_threads_per_query
       @thread_scale_factor = thread_scale_factor
       @http_retries = http_retries
+      @query_timeout = query_timeout
+
+      # Do NOT use normally, this exists for tests so we can reliably trigger the polling
+      # response workflow from snowflake in tests
+      @_enable_polling_queries = false
     end
 
     def query(query, warehouse: nil, streaming: false, database: nil)
       warehouse ||= @default_warehouse
       database ||= @default_database
 
+      query_start_time = Time.now.to_i
       response = nil
       connection_pool.with do |connection|
         request_body = {
-          "statement" => query, "warehouse" => warehouse, "database" =>  database
+          "statement" => query, "warehouse" => warehouse,
+          "database" =>  database, "timeout" => @query_timeout
         }
 
         response = request_with_auth_and_headers(
           connection,
           Net::HTTP::Post,
-          "/api/v2/statements?requestId=#{SecureRandom.uuid}",
+          "/api/v2/statements?requestId=#{SecureRandom.uuid}&async=#{@_enable_polling_queries}",
           Oj.dump(request_body)
         )
       end
-      retreive_result_set(response, streaming)
+      retreive_result_set(query_start_time, query, response, streaming)
     end
 
     alias fetch query
@@ -158,13 +173,6 @@ module RubySnowflake
         @port ||= URI.parse(@base_uri).port
       end
 
-      def handle_errors(response)
-        if response.code != "200"
-          raise BadResponseError.new({}),
-            "Bad response! Got code: #{response.code}, w/ message #{response.body}"
-        end
-      end
-
       def request_with_auth_and_headers(connection, request_class, path, body=nil)
         uri = URI.parse("#{@base_uri}#{path}")
         request = request_class.new(uri)
@@ -186,7 +194,7 @@ module RubySnowflake
       end
 
       def raise_on_bad_response(response)
-        return if response.code == "200"
+        return if VALID_RESPONSE_CODES.include? response.code
 
         # there are a class of errors we want to retry rather than just giving up
         if retryable_http_response_code?(response.code)
@@ -213,9 +221,50 @@ module RubySnowflake
         end
       end
 
-      def retreive_result_set(response, streaming)
+      def poll_for_completion_or_timeout(query_start_time, query, statement_handle)
+        first_data_json_body = nil
+
+        connection_pool.with do |connection|
+          loop do
+            sleep POLLING_INTERVAL
+
+            if Time.now.to_i - query_start_time > @query_timeout
+              cancelled = attempt_to_cancel_and_silence_errors(connection, statement_handle)
+              raise QueryTimeoutError.new("Query timed out. Query cancelled? #{cancelled} Query: #{query}")
+            end
+
+            poll_response = request_with_auth_and_headers(connection, Net::HTTP::Get,
+                                                          "/api/v2/statements/#{statement_handle}")
+            if poll_response.code == POLLING_RESPONSE_CODE
+              next
+            else
+              return poll_response
+            end
+          end
+        end
+      end
+
+      def attempt_to_cancel_and_silence_errors(connection, statement_handle)
+        cancel_response = request_with_auth_and_headers(connection, Net::HTTP::Post,
+                                                        "/api/v2/#{statement_handle}/cancel")
+        true
+      rescue Error => error
+        if error.is_a?(BadResponseError) && error.message.include?("404")
+          return true # snowflake cancelled it before we did
+        end
+        @logger.error("Error on attempting to cancel query #{statement_handle}, will raise a QueryTimeoutError")
+        false
+      end
+
+      def retreive_result_set(query_start_time, query, response, streaming)
         json_body = Oj.load(response.body, OJ_OPTIONS)
         statement_handle = json_body["statementHandle"]
+
+        if response.code == POLLING_RESPONSE_CODE
+          result_response = poll_for_completion_or_timeout(query_start_time, query, statement_handle)
+          json_body = Oj.load(result_response.body, OJ_OPTIONS)
+        end
+
         num_threads = number_of_threads_to_use(json_body["resultSetMetaData"]["partitionInfo"].size)
         retreive_proc = ->(index) { retreive_partition_data(statement_handle, index) }
 
