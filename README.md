@@ -37,6 +37,7 @@ client = RubySnowflake::Client.new(
   "some_database",                                      # The name of the database in the context of which the queries will run
   max_connections: 12,                                  # Config options can be passed in
   connection_timeout: 45,                               # See below for the full set of options
+  query_timeout: 1200,                                  # how long to wait for queries, in seconds
 )
 
 # alternatively you can use the `from_env` method, which will pull these values from the following environment variables. You can either provide the path to the PEM file, or it's contents in an ENV variable.
@@ -57,6 +58,7 @@ Available ENV variables (see below in the config section for details)
 - `SNOWFLAKE_MAX_THREADS_PER_QUERY`
 - `SNOWFLAKE_THREAD_SCALE_FACTOR`
 - `SNOWFLAKE_HTTP_RETRIES`
+- `SNOWFLAKE_QUERY_TIMEOUT`
 
 ## Make queries
 
@@ -115,6 +117,7 @@ The client supports the following configuration options, each with their own get
 - `max_threads_per_query` - The maximum number of threads the client should use to retreive data, per query, defaults to 8. If you want the client to act in a single threaded way, set this to 1
 - `thread_scale_factor` - When downloading a result set into memory, thread count is calculated by dividing a query's partition count by this number. For details on implementation see the code in `client.rb`.
 - `http_retries` - By default the client will retry common typically transient errors (http responses) twice, you can change the number of retries with this.
+- `query_timeout` - By default the client will wait 10 minutes (600s)  for a query to finish, you can change this default, snowflake has it's own timeout, which is currently not exposed in the client. Set in seconds.
 
 Example configuration:
 ```ruby
