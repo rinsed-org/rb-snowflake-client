@@ -50,7 +50,7 @@ RSpec.describe RubySnowflake::Client do
           expect(error).to be_a RubySnowflake::QueryTimeoutError
         end
         expect(client.logger).not_to have_received(:error).with(a_string_including("cancel query"))
-        expect(Time.now.to_i - start_time).to be < 5 # should have short circuited after 1s
+        expect(Time.now.to_i - start_time).to be_between(1.0, 5)
       end
     end
 
