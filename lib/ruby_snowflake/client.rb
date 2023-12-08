@@ -123,7 +123,7 @@ module RubySnowflake
       @http_retries = http_retries
       @query_timeout = query_timeout
 
-      # Do use normally, this exists for tests so we can reliably trigger the polling
+      # Do NOT use normally, this exists for tests so we can reliably trigger the polling
       # response workflow from snowflake in tests
       @_enable_polling_queries = false
     end
