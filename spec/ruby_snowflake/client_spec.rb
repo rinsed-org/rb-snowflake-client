@@ -34,6 +34,26 @@ RSpec.describe RubySnowflake::Client do
       end
     end
 
+    context "when the query times out" do
+      before do
+        ENV["SNOWFLAKE_QUERY_TIMEOUT"] = "1"
+        client.instance_variable_set(:@_enable_polling_queries, true)
+      end
+      after { ENV["SNOWFLAKE_MAX_CONNECTIONS"] = nil }
+      let(:query) { "SELECT SYSTEM$WAIT(10)" }
+
+      it "attempts to cancel the query" do
+        allow(client.logger).to receive(:error)
+
+        start_time = Time.now.to_i
+        expect { result }.to raise_error do |error|
+          expect(error).to be_a RubySnowflake::QueryTimeoutError
+        end
+        expect(client.logger).not_to have_received(:error).with(a_string_including("cancel query"))
+        expect(Time.now.to_i - start_time).to be < 5 # should have short circuited after 1s
+      end
+    end
+
     context "when the query errors" do
       let(:query) { "INVALID QUERY;" }
       it "should raise an exception" do

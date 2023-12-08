@@ -132,7 +132,7 @@ module RubySnowflake
       warehouse ||= @default_warehouse
       database ||= @default_database
 
-      query_start_time = Time.now
+      query_start_time = Time.now.to_i
       response = nil
       connection_pool.with do |connection|
         request_body = {
@@ -228,7 +228,7 @@ module RubySnowflake
           loop do
             sleep POLLING_INTERVAL
 
-            if Time.now - query_start_time > @query_timeout
+            if Time.now.to_i - query_start_time > @query_timeout
               cancelled = attempt_to_cancel_and_silence_errors(connection, statement_handle)
               raise QueryTimeoutError.new("Query timed out. Query cancelled? #{cancelled} Query: #{query}")
             end
@@ -248,8 +248,12 @@ module RubySnowflake
         cancel_response = request_with_auth_and_headers(connection, Net::HTTP::Post,
                                                         "/api/v2/#{statement_handle}/cancel")
         true
-      rescue Error
+      rescue Error => error
+        if error.is_a?(BadResponseError) && error.message.include?("404")
+          return true # snowflake cancelled it before we did
+        end
         @logger.error("Error on attempting to cancel query #{statement_handle}, will raise a QueryTimeoutError")
+        false
       end
 
       def retreive_result_set(query_start_time, query, response, streaming)
