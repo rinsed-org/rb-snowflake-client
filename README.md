@@ -117,7 +117,7 @@ The client supports the following configuration options, each with their own get
 - `max_threads_per_query` - The maximum number of threads the client should use to retreive data, per query, defaults to 8. If you want the client to act in a single threaded way, set this to 1
 - `thread_scale_factor` - When downloading a result set into memory, thread count is calculated by dividing a query's partition count by this number. For details on implementation see the code in `client.rb`.
 - `http_retries` - By default the client will retry common typically transient errors (http responses) twice, you can change the number of retries with this.
-- `query_timeout` - By default the client will wait 10 minutes (600s)  for a query to finish, you can change this default, snowflake has it's own timeout, which is currently not exposed in the client. Set in seconds.
+- `query_timeout` - By default the client will wait 10 minutes (600s)  for a query to finish, you can change this default, will also set this limit in the query for snowflake to obey. Set in seconds.
 
 Example configuration:
 ```ruby
