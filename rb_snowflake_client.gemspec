@@ -11,7 +11,8 @@ Gem::Specification.new do |s|
   s.description = <<~DESC
   Using the HTTP V2 Api for Snowflake runs queries & creates native Ruby objects.
   DESC
-  s.license = "MIT" # TODO: double check
+  s.homepage = "https://github.com/rinsed-org/rb-snowflake-client"
+  s.license = "MIT"
 
   s.files = Dir.chdir(File.expand_path(__dir__)) do
     `git ls-files -z`.split("\x0").reject { |f| f.match(%r{\A(?:test|spec|features|vendor)/}) }
