@@ -188,6 +188,14 @@ client = RubySnowflake::Client.new(
 )
 ```
 
+# Code of conduct
+
+See [Code of Coduct](CODE_OF_CONDUCT.md)
+
+# Contributing
+
+Please fork and create a pull request. Getting tests to run will be the most labor intensive part. You'll want to have an active snowflake account, and then configure your `.env` for the tests to be able to connect to your instance. Inside of `client_spec.rb` there are SQL statements to create the required tables. A pull request to make this less manual is also welcome :-). We'll do our best to help you along. Also, feel free to use Issues to report issues. [We][https://rinsed.co] use this client in production today, so we're happy to look at issues, especially where performance or correctness is involved.
+
 # Links:
 - snowflake API reference https://docs.snowflake.com/en/developer-guide/sql-api/reference
 - snowflake authentication docs: https://docs.snowflake.com/en/developer-guide/sql-api/authenticating
