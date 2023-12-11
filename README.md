@@ -9,7 +9,7 @@ The available options for connecting from Ruby to Snowflake include:
 This library is implemented in ruby and while it leverages some libraries that have native extensions, doesn't currently include anything itself. Depending on network latency and the shape of the data this library can be faster or slower than the go wrapper. The big advantages are:
 * It uses about half the memory when you pull a full result set into memory
 * It does not hold onto the [ruby GVL][https://www.speedshop.co/2020/05/11/the-ruby-gvl-and-scaling.html] and so does not block other threads while waiting on IO like the go wrapper client.
-* It will comsume more resources for the same data, because it's using the HTTP v2 API and getting JSON back, there is just more work to as compared to the go or python clients that use Apache Arrow under the covers.
+* It will consume more resources for the same data, because it's using the HTTP v2 API and getting JSON back, there is just more work to as compared to the go or python clients that use Apache Arrow under the covers.
 
 # Usage
 
@@ -107,14 +107,14 @@ client.query("SELECT * FROM BIGTABLE", warehouse: "FAST_WH")
 
 # Configuration Options
 
-The client supports the following configuration options, each with their own getter/setter except connection pool options which must be set at construction. Additionally, all except logger can be configured with environment variables (see above, but the pattern is like: "SNOWFLAKE_HTTP_RETRIES". Configuration options can only be set on initiialization through `new` or `from_env`.
+The client supports the following configuration options, each with their own getter/setter except connection pool options which must be set at construction. Additionally, all except logger can be configured with environment variables (see above, but the pattern is like: "SNOWFLAKE_HTTP_RETRIES". Configuration options can only be set on initialization through `new` or `from_env`.
 
 - `logger` - takes any ruby logger (by default it's a std lib Logger.new(STDOUT), set at DEBUG level. Not available as an ENV variable config option
 - `log_level` - takes a log level, type is dependent on logger, for the default ruby Logger, use a level like `Logger::WARN`. Not available as an ENV variable config option.
 - `jwt_token_ttl` - The time to live set on JWT token in seconds, defaults to 3540 (59 minutes, the longest Snowflake supports is 60).
 - `connection_timeout` - The amount of time in seconds that the client's connection pool will wait before erroring in handing out a valid connection, defaults to 60 seconds
 - `max_connections` - The maximum number of http connections to hold open in the connection pool. If you use the client in a threaded context, you may need to increase this to be threads * client.max_threads_per_query, defaults to 16.
-- `max_threads_per_query` - The maximum number of threads the client should use to retreive data, per query, defaults to 8. If you want the client to act in a single threaded way, set this to 1
+- `max_threads_per_query` - The maximum number of threads the client should use to retrieve data, per query, defaults to 8. If you want the client to act in a single threaded way, set this to 1
 - `thread_scale_factor` - When downloading a result set into memory, thread count is calculated by dividing a query's partition count by this number. For details on implementation see the code in `client.rb`.
 - `http_retries` - By default the client will retry common typically transient errors (http responses) twice, you can change the number of retries with this.
 - `query_timeout` - By default the client will wait 10 minutes (600s) for a query to finish, you can change this default, will also set this limit in the query for snowflake to obey. Set in seconds.
