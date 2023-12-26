@@ -15,9 +15,9 @@ This library is implemented in ruby and while it leverages some libraries that h
 
 ## Create a client
 
-Add to your Gemfile or use `gem install rb-snowflake-client`
+Add to your Gemfile or use `gem install rb_snowflake_client`
 ```ruby
-  gem "rb-snowflake-client"
+  gem "rb_snowflake_client"
 ```
 
 Then require, create a client
