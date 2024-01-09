@@ -156,6 +156,13 @@ module RubySnowflake
       value = ENV[env_var_name]
       value.nil? || value.empty? ? default_value : ENV[env_var_name].to_i
     end
+
+    # This method can be used to populate the JWT token used for authentication
+    # in tests that require time travel.
+    def create_jwt_token
+      @key_pair_jwt_auth_manager.jwt_token
+    end
+
     private_class_method :env_option
 
     private
