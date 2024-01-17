@@ -136,8 +136,8 @@ module RubySnowflake
       response = nil
       connection_pool.with do |connection|
         request_body = {
-          "statement" => query, "warehouse" => warehouse,
-          "database" =>  database, "timeout" => @query_timeout
+          "statement" => query, "warehouse" => warehouse&.upcase,
+          "database" =>  database&.upcase, "timeout" => @query_timeout
         }
 
         response = request_with_auth_and_headers(
