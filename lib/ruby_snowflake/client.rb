@@ -190,7 +190,7 @@ module RubySnowflake
         request.body = body unless body.nil?
 
         Retryable.retryable(tries: @http_retries + 1,
-                            on: RetryableBadResponseError,
+                            on: [RetryableBadResponseError, OpenSSL::SSL::SSLError],
                             log_method: retryable_log_method) do
           response = nil
           bm = Benchmark.measure { response = connection.request(request) }
