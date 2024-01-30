@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "net/http"
+
 module RubySnowflake
   class Client
     class HttpConnectionWrapper
@@ -11,6 +13,8 @@ module RubySnowflake
       def start
         @connection = Net::HTTP.start(@hostname, @port, use_ssl: true)
         self
+      rescue OpenSSL::SSL::SSLError => e
+        raise e # let open ssl errors propagate up to get retried
       rescue StandardError
         raise ConnectionError.new "Error connecting to server."
       end
@@ -22,8 +26,10 @@ module RubySnowflake
 
         begin
           connection.request(request)
-        rescue StandardError => error
-          raise RequestError.new "HTTP error requesting data", cause: error
+        rescue OpenSSL::SSL::SSLError => e
+          raise e # let open ssl errors propagate up to get retried
+        rescue StandardError
+          raise RequestError, "HTTP error requesting data"
         end
       end
 
