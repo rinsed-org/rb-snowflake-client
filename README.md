@@ -4,11 +4,11 @@
 
 The available options for connecting from Ruby to Snowflake include:
 * ODBC - which works, but can be very slow, especially for a lot of data, which is probably why you're using Snowflake
-* The [ruby snowflake client][https://github.com/rinsed-org/ruby-snowflake-client] that wraps the go client. This is probably the fastest single threaded option, which we also created. However, that library takes the ruby GVL and so stops all other processing in your ruby process (threads).
+* The [ruby snowflake client](https://github.com/rinsed-org/ruby-snowflake-client) that wraps the go client. This is probably the fastest single threaded option, which we also created. However, that library takes the ruby GVL and so stops all other processing in your ruby process (threads).
 
 This library is implemented in ruby and while it leverages some libraries that have native extensions, doesn't currently include anything itself. Depending on network latency and the shape of the data this library can be faster or slower than the go wrapper. The big advantages are:
 * It uses about half the memory when you pull a full result set into memory
-* It does not hold onto the [ruby GVL][https://www.speedshop.co/2020/05/11/the-ruby-gvl-and-scaling.html] and so does not block other threads while waiting on IO like the go wrapper client.
+* It does not hold onto the [ruby GVL](https://www.speedshop.co/2020/05/11/the-ruby-gvl-and-scaling.html) and so does not block other threads while waiting on IO like the go wrapper client.
 * It will consume more resources for the same data, because it's using the HTTP v2 API and getting JSON back, there is just more work to as compared to the go or python clients that use Apache Arrow under the covers.
 
 # Usage
