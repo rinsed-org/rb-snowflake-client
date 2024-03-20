@@ -190,6 +190,7 @@ module RubySnowflake
         request.body = body unless body.nil?
 
         Retryable.retryable(tries: @http_retries + 1,
+                            sleep: lambda {|n| 2**n }, # 1, 2, 4, 8, etc
                             on: [RetryableBadResponseError, OpenSSL::SSL::SSLError],
                             log_method: retryable_log_method) do
           response = nil
