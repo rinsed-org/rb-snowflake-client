@@ -107,9 +107,11 @@ client.query("SELECT * FROM BIGTABLE", warehouse: "FAST_WH")
 
 ## Binding parameters
 
+Say we have `BIGTABLE` with a `data` column of a type `VARIANT`.
+
 ```ruby
 json_string = '{"valid": "json"}'
-query = "insert into tbl(data) select parse_json(?)"
+query = "insert into BIGTABLE(data) select parse_json(?)"
 bindings = {
   "1": {
     "type": "TEXT",
