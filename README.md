@@ -121,7 +121,7 @@ bindings = {
 client.query(query, bindings: bindings)
 ```
 
-For additional information for binding parameters refer to snowflake documentation: https://docs.snowflake.com/en/developer-guide/sql-api/submitting-requests#using-bind-variables-in-a-statement
+For additional information about binding parameters refer to snowflake documentation: https://docs.snowflake.com/en/developer-guide/sql-api/submitting-requests#using-bind-variables-in-a-statement
 
 # Configuration Options
 
