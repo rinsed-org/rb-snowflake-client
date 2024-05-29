@@ -147,7 +147,7 @@ module RubySnowflake
           Oj.dump(request_body)
         )
       end
-      retreive_result_set(query_start_time, query, response, streaming)
+      retrieve_result_set(query_start_time, query, response, streaming)
     end
 
     alias fetch query
@@ -264,7 +264,7 @@ module RubySnowflake
         false
       end
 
-      def retreive_result_set(query_start_time, query, response, streaming)
+      def retrieve_result_set(query_start_time, query, response, streaming)
         json_body = Oj.load(response.body, OJ_OPTIONS)
         statement_handle = json_body["statementHandle"]
 
