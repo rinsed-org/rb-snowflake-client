@@ -274,18 +274,18 @@ module RubySnowflake
         end
 
         num_threads = number_of_threads_to_use(json_body["resultSetMetaData"]["partitionInfo"].size)
-        retreive_proc = ->(index) { retreive_partition_data(statement_handle, index) }
+        retrieve_proc = ->(index) { retrieve_partition_data(statement_handle, index) }
 
         if streaming
-          StreamingResultStrategy.result(json_body, retreive_proc)
+          StreamingResultStrategy.result(json_body, retrieve_proc)
         elsif num_threads == 1
-          SingleThreadInMemoryStrategy.result(json_body, retreive_proc)
+          SingleThreadInMemoryStrategy.result(json_body, retrieve_proc)
         else
-          ThreadedInMemoryStrategy.result(json_body, retreive_proc, num_threads)
+          ThreadedInMemoryStrategy.result(json_body, retrieve_proc, num_threads)
         end
       end
 
-      def retreive_partition_data(statement_handle, partition_index)
+      def retrieve_partition_data(statement_handle, partition_index)
         partition_response = nil
         connection_pool.with do |connection|
           partition_response = request_with_auth_and_headers(
