@@ -128,7 +128,7 @@ module RubySnowflake
       @_enable_polling_queries = false
     end
 
-    def query(query, warehouse: nil, streaming: false, database: nil, bindings: nil)
+    def query(query, warehouse: nil, streaming: false, database: nil, schema: nil, bindings: nil)
       warehouse ||= @default_warehouse
       database ||= @default_database
 
@@ -136,8 +136,10 @@ module RubySnowflake
       response = nil
       connection_pool.with do |connection|
         request_body = {
-          "statement" => query, "warehouse" => warehouse&.upcase,
-          "database" =>  database&.upcase, "timeout" => @query_timeout,
+          "warehouse" => warehouse&.upcase,
+          "schema" => schema&.upcase,
+          "database" =>  database&.upcase,  
+          "statement" => query,
           "bindings" => bindings
         }
 
