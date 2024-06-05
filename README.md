@@ -105,6 +105,12 @@ Clients are not warehouse specific, you can override the default warehouse per q
 client.query("SELECT * FROM BIGTABLE", warehouse: "FAST_WH")
 ```
 
+## Specifying a schema
+
+```ruby
+client.query("SELECT * FROM BIGTABLE", schema: "MY_SCHEMA")
+```
+
 # Configuration Options
 
 The client supports the following configuration options, each with their own getter/setter except connection pool options which must be set at construction. Additionally, all except logger can be configured with environment variables (see above, but the pattern is like: "SNOWFLAKE_HTTP_RETRIES". Configuration options can only be set on initialization through `new` or `from_env`.
