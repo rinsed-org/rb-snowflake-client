@@ -105,6 +105,12 @@ Clients are not warehouse specific, you can override the default warehouse per q
 client.query("SELECT * FROM BIGTABLE", warehouse: "FAST_WH")
 ```
 
+## Specifying a schema
+
+```ruby
+client.query("SELECT * FROM BIGTABLE", schema: "MY_SCHEMA")
+```
+
 ## Binding parameters
 
 Say we have `BIGTABLE` with a `data` column of a type `VARIANT`.
