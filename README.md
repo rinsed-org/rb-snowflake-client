@@ -105,6 +105,24 @@ Clients are not warehouse specific, you can override the default warehouse per q
 client.query("SELECT * FROM BIGTABLE", warehouse: "FAST_WH")
 ```
 
+## Binding parameters
+
+Say we have `BIGTABLE` with a `data` column of a type `VARIANT`.
+
+```ruby
+json_string = '{"valid": "json"}'
+query = "insert into BIGTABLE(data) select parse_json(?)"
+bindings = {
+  "1": {
+    "type": "TEXT",
+    "value": json_string
+  }
+}
+client.query(query, bindings: bindings)
+```
+
+For additional information about binding parameters refer to snowflake documentation: https://docs.snowflake.com/en/developer-guide/sql-api/submitting-requests#using-bind-variables-in-a-statement
+
 # Configuration Options
 
 The client supports the following configuration options, each with their own getter/setter except connection pool options which must be set at construction. Additionally, all except logger can be configured with environment variables (see above, but the pattern is like: "SNOWFLAKE_HTTP_RETRIES". Configuration options can only be set on initialization through `new` or `from_env`.
