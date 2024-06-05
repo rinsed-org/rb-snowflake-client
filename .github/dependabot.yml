@@ -1,0 +1,13 @@
+version: 2
+updates:
+  #
+  # BUNDLER
+  #
+  - package-ecosystem: bundler
+    directory: '/'
+    schedule:
+      interval: weekly
+    allow:
+      - dependency-type: direct
+      - dependency-type: indirect
+    open-pull-requests-limit: 10
