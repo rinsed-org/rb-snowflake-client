@@ -32,6 +32,17 @@ RSpec.describe RubySnowflake::Client do
       end
     end
 
+    context "with lower case schema name" do
+      let(:query) { "SELECT * from test_datatypes;" }
+
+      it "should work" do
+        result = client.fetch(query, database: "ruby_snowflake_client_testing", schema: "public")
+
+        expect(result).to be_a(RubySnowflake::Result)
+        expect(result.length).to eq(2)
+      end
+    end
+
     context "with lower case warehouse name" do
       let(:query) { "SELECT * from ruby_snowflake_client_testing.public.test_datatypes;" }
 
