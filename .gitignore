@@ -7,6 +7,3 @@
 /.DS_Store
 .env
 .ruby-version
-
-# It's good practice to not include Gemfile.lock in vc for gems; catch dependency issues earlier
-Gemfile.lock
