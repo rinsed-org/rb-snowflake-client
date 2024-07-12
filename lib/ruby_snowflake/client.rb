@@ -223,7 +223,7 @@ module RubySnowflake
       def retryable_http_response_code?(code)
         # retry (in order): bad request, forbidden (token expired in flight), method not allowed,
         #   request timeout, too many requests, anything in the 500 range (504 is fairly common)
-        [400, 403, 405, 408, 429, 504].include?(code.to_i) || (500..599).include?(code)
+        [400, 403, 405, 408, 429, 502, 504].include?(code.to_i) || (500..599).include?(code.to_i)
       end
 
       def retryable_log_method
