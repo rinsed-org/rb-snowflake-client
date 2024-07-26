@@ -3,6 +3,14 @@ require "spec_helper"
 RSpec.describe RubySnowflake::Client do
   let(:client) { described_class.from_env }
 
+  describe "initialization" do
+    context "when the environment variables are not set" do
+      it "should raise an error" do
+        expect { client }.to raise_error(RubySnowflake::MissingConfig)
+      end
+    end
+  end
+
   describe "querying" do
     let(:query) { "" }
     let(:result) { client.query(query) }

@@ -33,6 +33,7 @@ module RubySnowflake
   class BadResponseError < Error ; end
   class ConnectionError < Error ; end
   class ConnectionStarvedError < Error ; end
+  class MissingConfig < Error ; end
   class RetryableBadResponseError < Error ; end
   class RequestError < Error ; end
   class QueryTimeoutError < Error ;  end
@@ -73,14 +74,21 @@ module RubySnowflake
                       thread_scale_factor: env_option("SNOWFLAKE_THREAD_SCALE_FACTOR", DEFAULT_THREAD_SCALE_FACTOR),
                       http_retries: env_option("SNOWFLAKE_HTTP_RETRIES", DEFAULT_HTTP_RETRIES),
                       query_timeout: env_option("SNOWFLAKE_QUERY_TIMEOUT", DEFAULT_QUERY_TIMEOUT))
-      private_key = ENV["SNOWFLAKE_PRIVATE_KEY"] || File.read(ENV["SNOWFLAKE_PRIVATE_KEY_PATH"])
+      private_key =
+        if key = ENV["SNOWFLAKE_PRIVATE_KEY"]
+          key
+        elsif path = ENV["SNOWFLAKE_PRIVATE_KEY_PATH"]
+          File.read(path)
+        else
+          raise MissingConfig.new({}), "Either ENV['SNOWFLAKE_PRIVATE_KEY'] or ENV['SNOWFLAKE_PRIVATE_KEY_PATH'] must be set"
+        end
 
       new(
-        ENV["SNOWFLAKE_URI"],
+        ENV.fetch("SNOWFLAKE_URI"),
         private_key,
-        ENV["SNOWFLAKE_ORGANIZATION"],
-        ENV["SNOWFLAKE_ACCOUNT"],
-        ENV["SNOWFLAKE_USER"],
+        ENV.fetch("SNOWFLAKE_ORGANIZATION"),
+        ENV.fetch("SNOWFLAKE_ACCOUNT"),
+        ENV.fetch("SNOWFLAKE_USER"),
         ENV["SNOWFLAKE_DEFAULT_WAREHOUSE"],
         ENV["SNOWFLAKE_DEFAULT_DATABASE"],
         logger: logger,
