@@ -5,6 +5,17 @@ RSpec.describe RubySnowflake::Client do
 
   describe "initialization" do
     context "when the environment variables are not set" do
+      around do |example|
+        old_env = ENV.to_h
+
+        begin
+          ENV.clear
+          example.run
+        ensure
+          ENV.replace(old_env)
+        end
+      end
+
       it "should raise an error" do
         expect { client }.to raise_error(RubySnowflake::MissingConfig)
       end
