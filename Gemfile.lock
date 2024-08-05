@@ -22,7 +22,7 @@ GEM
     jwt (2.8.1)
       base64
     method_source (1.1.0)
-    oj (3.16.3)
+    oj (3.16.4)
       bigdecimal (>= 3.0)
     parallel (1.24.0)
     pry (0.14.2)
