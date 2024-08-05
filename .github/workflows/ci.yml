@@ -15,6 +15,7 @@ jobs:
         uses: ruby/setup-ruby@904f3fef85a9c80a3750cbe7d5159268fd5caa9f
         with:
           ruby-version: '3.0.6'
+          node-version: '20'
       - name: Install dependencies
         run: bundle install
       - name: Build gem
@@ -30,7 +31,10 @@ jobs:
       - name: Run tests
         run: bundle exec rspec
         env: # Or as an environment variable
+          SNOWFLAKE_URI: ${{ secrets.SNOWFLAKE_URI }}
           SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          SNOWFLAKE_DEFAULT_WAREHOUSE: $${{ secrets.SNOWFLAKE_DEFAULT_WAREHOUSE }}
+          SNOWFLAKE_DEFAULT_DATABASE: ${{ secrets.SNOWFLAKE_DEFAULT_DATABASE }}
           SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
           SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
           SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
