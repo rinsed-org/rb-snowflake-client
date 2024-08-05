@@ -31,6 +31,7 @@ jobs:
         run: bundle exec rspec
         env: # Or as an environment variable
           SNOWFLAKE_URI: ${{ secrets.SNOWFLAKE_URI }}
+          SNOWFLAKE_ORGANIZATION: ${{ secrets.SNOWFLAKE_ORGANIZATION }}
           SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
           SNOWFLAKE_DEFAULT_WAREHOUSE: $${{ secrets.SNOWFLAKE_DEFAULT_WAREHOUSE }}
           SNOWFLAKE_DEFAULT_DATABASE: ${{ secrets.SNOWFLAKE_DEFAULT_DATABASE }}
