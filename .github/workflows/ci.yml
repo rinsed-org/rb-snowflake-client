@@ -28,7 +28,7 @@ jobs:
       - name: Install gem
         run: cd pkg && gem install --local *.gem
       - name: Run tests
-        run: ruby -rrb_snowflake_client spec/test.rb
+        run: bundle exec rspec
         env: # Or as an environment variable
           SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
           SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
