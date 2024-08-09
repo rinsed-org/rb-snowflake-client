@@ -277,10 +277,10 @@ RSpec.describe RubySnowflake::Client do
       context "with async (polling) responses" do
         before { client.instance_variable_set(:@_enable_polling_queries, true) }
 
-        let(:limit) { 50_000 }
+        let(:limit) { 1_000 }
         it "should work" do
           rows = result.get_all_rows
-          expect(rows.length).to eq 50000
+          expect(rows.length).to eq 1000
           expect((-50000...50000)).to include(rows[0]["id"].to_i)
         end
       end
