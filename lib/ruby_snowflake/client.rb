@@ -146,7 +146,7 @@ module RubySnowflake
         request_body = {
           "warehouse" => warehouse&.upcase,
           "schema" => schema&.upcase,
-          "database" =>  database&.upcase,  
+          "database" =>  database&.upcase,
           "statement" => query,
           "bindings" => bindings
         }
@@ -230,8 +230,10 @@ module RubySnowflake
       # https://github.com/snowflakedb/snowflake-connector-python/blob/eceed981f93e29d2f4663241253b48340389f4ef/src/snowflake/connector/network.py#L191
       def retryable_http_response_code?(code)
         # retry (in order): bad request, forbidden (token expired in flight), method not allowed,
-        #   request timeout, too many requests, anything in the 500 range (504 is fairly common)
-        [400, 403, 405, 408, 429].include?(code.to_i) || (500..599).include?(code.to_i)
+        # request timeout, too many requests, anything in the 500 range (504 is fairly common),
+        # anything in the 3xx range as those are mostly "redirect" responses
+        [400, 403, 405, 408, 429].include?(code.to_i) || (500..599).include?(code.to_i) ||
+         (300..399).include?(code.to_i)
       end
 
       def retryable_log_method
