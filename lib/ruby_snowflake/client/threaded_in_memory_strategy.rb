@@ -10,12 +10,13 @@ module RubySnowflake
 
         thread_pool = Concurrent::FixedThreadPool.new(num_threads)
         partitions
-          .each_with_index do |partition, index|
+          .each_with_index.map do |partition, index|
             next if index == 0 # already have the first partition
-            futures << [index, Concurrent::Future.execute(executor: thread_pool) { retreive_proc.call(index) }]
+            [index, Concurrent::Future.execute(executor: thread_pool) { retreive_proc.call(index) }]
           end
-          .compact
           .each do |entry|
+            next if entry.nil? # 0th index
+
             index, future = entry
             if future.rejected?
               if future.reason.is_a? RubySnowflake::Error
