@@ -8,10 +8,11 @@ module RubySnowflake
   class Result
     include Enumerable
 
-    attr_reader :data
+    attr_reader :data, :statement_id
 
-    def initialize(partition_count, row_type_data)
+    def initialize(partition_count, row_type_data, statement_handle)
       @data = Concurrent::Array.new(partition_count)
+      @statement_id = statement_handle
       extract_row_metadata(row_type_data)
     end
 

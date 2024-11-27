@@ -292,9 +292,9 @@ module RubySnowflake
         if streaming
           StreamingResultStrategy.result(json_body, retrieve_proc)
         elsif num_threads == 1
-          SingleThreadInMemoryStrategy.result(json_body, retrieve_proc)
+          SingleThreadInMemoryStrategy.result(json_body, retrieve_proc, statement_handle)
         else
-          ThreadedInMemoryStrategy.result(json_body, retrieve_proc, num_threads)
+          ThreadedInMemoryStrategy.result(json_body, retrieve_proc, num_threads, statement_handle)
         end
       end
 

@@ -3,9 +3,9 @@
 module RubySnowflake
   class Client
     class SingleThreadInMemoryStrategy
-      def self.result(statement_json_body, retreive_proc)
+      def self.result(statement_json_body, retreive_proc, statement_handle)
         partitions = statement_json_body["resultSetMetaData"]["partitionInfo"]
-        result = Result.new(partitions.size, statement_json_body["resultSetMetaData"]["rowType"])
+        result = Result.new(partitions.size, statement_json_body["resultSetMetaData"]["rowType"], statement_handle)
         result[0] = statement_json_body["data"]
 
         partitions.each_with_index do |partition, index|
