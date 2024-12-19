@@ -28,8 +28,14 @@ module RubySnowflake
 
     def initialize(details)
       @sentry_context = details
+      @details = details
+    end
+
+    def message
+      @details
     end
   end
+
   class BadResponseError < Error ; end
   class ConnectionError < Error ; end
   class ConnectionStarvedError < Error ; end
@@ -249,9 +255,10 @@ module RubySnowflake
           loop do
             sleep POLLING_INTERVAL
 
-            if Time.now.to_i - query_start_time > @query_timeout
+            elapsed_time = Time.now.to_i - query_start_time
+            if elapsed_time > @query_timeout
               cancelled = attempt_to_cancel_and_silence_errors(connection, statement_handle)
-              raise QueryTimeoutError.new("Query timed out. Query cancelled? #{cancelled} Query: #{query}")
+              raise QueryTimeoutError.new("Query timed out. Query cancelled? #{cancelled}; Duration: #{elapsed_time}; Query: '#{query}'")
             end
 
             poll_response = request_with_auth_and_headers(connection, Net::HTTP::Get,
