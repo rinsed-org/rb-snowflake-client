@@ -91,7 +91,9 @@ RSpec.describe RubySnowflake::Client do
         ENV["SNOWFLAKE_QUERY_TIMEOUT"] = "1"
         client.instance_variable_set(:@_enable_polling_queries, true)
       end
-      after { ENV["SNOWFLAKE_MAX_CONNECTIONS"] = nil }
+      after do
+        ENV["SNOWFLAKE_QUERY_TIMEOUT"] = nil
+      end
       let(:query) { "SELECT SYSTEM$WAIT(10)" }
 
       it "attempts to cancel the query" do
