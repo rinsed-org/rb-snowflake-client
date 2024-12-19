@@ -32,7 +32,12 @@ module RubySnowflake
     end
 
     def message
-      @details
+      if @details == {}
+        super
+      else
+        @details.to_s
+      end
+
     end
   end
 

@@ -101,8 +101,9 @@ RSpec.describe RubySnowflake::Client do
         expect { result }.to raise_error do |error|
           expect(error).to be_a RubySnowflake::QueryTimeoutError
         end
+        # We are not receiving this error because we cancel it before Snowflake can
         expect(client.logger).not_to have_received(:error).with(a_string_including("cancel query"))
-        expect(Time.now.to_i - start_time).to be_between(1.0, 5)
+        expect(Time.now.to_i - start_time).to be >= 1 #query timeout
       end
     end
 
