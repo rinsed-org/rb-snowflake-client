@@ -197,7 +197,8 @@ ALTER USER EXAMPLE_USER SET RSA_PUBLIC_KEY = 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMI
 ```
 5. Verify your auth setup. If you have `snowsql` installed, that has an easy method (CTRL-d to exit)
 ```bash
-snowsql -a <account_identifier>.<region>p -u <user> --private-key-path private_key.pem
+# example: snowsql -a AAAAAAA.BBBBBBBB.us-east-1 -u john --private-key-path private_key.pem
+snowsql -a <account_identifier>.<region> -u <user> --private-key-path private_key.pem
 ```
 or alternatively, use the client to verify:
 ```ruby
