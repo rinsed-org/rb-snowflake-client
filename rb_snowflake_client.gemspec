@@ -19,10 +19,11 @@ Gem::Specification.new do |s|
   end
 
   s.require_paths = ["lib"]
+  s.add_dependency "bigdecimal", ">= 3.0"
   s.add_dependency "concurrent-ruby", ">= 1.2"
   s.add_dependency "connection_pool", ">= 2.4"
   s.add_dependency "dotenv", ">= 2.8"
+  s.add_dependency "json", ">= 2.1.0"
   s.add_dependency "jwt", ">= 2.7"
-  s.add_dependency "oj", ">= 3.16"
   s.add_dependency "retryable", ">= 3.0"
 end

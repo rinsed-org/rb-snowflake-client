@@ -2,12 +2,12 @@
 
 require "base64"
 require "benchmark"
+require "bigdecimal"
 require "concurrent"
 require "connection_pool"
 require "json"
 require "logger"
 require "net/http"
-require "oj"
 require "retryable"
 require "securerandom"
 require "uri"
@@ -68,7 +68,7 @@ module RubySnowflake
     # how long to wait to allow a query to complete, in seconds
     DEFAULT_QUERY_TIMEOUT = 600 # 10 minutes
 
-    OJ_OPTIONS = { :bigdecimal_load => :bigdecimal }.freeze
+    JSON_PARSE_OPTIONS = { decimal_class: BigDecimal }.freeze
     VALID_RESPONSE_CODES = %w(200 202).freeze
     POLLING_RESPONSE_CODE = "202"
     POLLING_INTERVAL = 2 # seconds
@@ -166,7 +166,7 @@ module RubySnowflake
           connection,
           Net::HTTP::Post,
           "/api/v2/statements?requestId=#{SecureRandom.uuid}&async=#{@_enable_polling_queries}",
-          Oj.dump(request_body)
+          request_body.to_json
         )
       end
       retrieve_result_set(query_start_time, query, response, streaming)
@@ -290,12 +290,12 @@ module RubySnowflake
       end
 
       def retrieve_result_set(query_start_time, query, response, streaming)
-        json_body = Oj.load(response.body, OJ_OPTIONS)
+        json_body = JSON.parse(response.body, JSON_PARSE_OPTIONS)
         statement_handle = json_body["statementHandle"]
 
         if response.code == POLLING_RESPONSE_CODE
           result_response = poll_for_completion_or_timeout(query_start_time, query, statement_handle)
-          json_body = Oj.load(result_response.body, OJ_OPTIONS)
+          json_body = JSON.parse(result_response.body, JSON_PARSE_OPTIONS)
         end
 
         num_threads = number_of_threads_to_use(json_body["resultSetMetaData"]["partitionInfo"].size)
@@ -321,7 +321,7 @@ module RubySnowflake
         end
 
         partition_json = {}
-        bm = Benchmark.measure { partition_json = Oj.load(partition_response.body, OJ_OPTIONS) }
+        bm = Benchmark.measure { partition_json = JSON.parse(partition_response.body, JSON_PARSE_OPTIONS) }
         logger.debug { "JSON parsing took: #{bm.real}" }
         partition_data = partition_json["data"]
 
