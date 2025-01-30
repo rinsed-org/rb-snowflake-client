@@ -30,8 +30,8 @@ module RubySnowflake
           private_key = OpenSSL::PKey.read(@private_key_pem)
 
           payload = {
-            :iss => "#{@organization.upcase}-#{@account.upcase}.#{@user.upcase}.#{public_key_fingerprint}",
-            :sub => "#{@organization.upcase}-#{@account.upcase}.#{@user.upcase}",
+            :iss => "#{@account.upcase}.#{@user.upcase}.#{public_key_fingerprint}",
+            :sub => "#{@account.upcase}.#{@user.upcase}",
             :iat => now,
             :exp => @token_expires_at
           }
