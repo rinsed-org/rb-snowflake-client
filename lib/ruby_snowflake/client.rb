@@ -22,22 +22,12 @@ require_relative "streaming_result"
 
 module RubySnowflake
   class Error < StandardError
-    # This will get pulled through to Sentry, see:
-    # https://github.com/getsentry/sentry-ruby/blob/11ecd254c0d2cae2b327f0348074e849095aa32d/sentry-ruby/lib/sentry/error_event.rb#L31-L33
-    attr_reader :sentry_context
-
     def initialize(details)
-      @sentry_context = details
       @details = details
     end
 
     def message
-      if @details == {}
-        super
-      else
-        @details.to_s
-      end
-
+      @details.to_s
     end
   end
 
@@ -91,7 +81,7 @@ module RubySnowflake
         elsif path = ENV["SNOWFLAKE_PRIVATE_KEY_PATH"]
           File.read(path)
         else
-          raise MissingConfig.new({}), "Either ENV['SNOWFLAKE_PRIVATE_KEY'] or ENV['SNOWFLAKE_PRIVATE_KEY_PATH'] must be set"
+          raise MissingConfig, "Either ENV['SNOWFLAKE_PRIVATE_KEY'] or ENV['SNOWFLAKE_PRIVATE_KEY_PATH'] must be set"
         end
 
       new(
@@ -228,11 +218,11 @@ module RubySnowflake
 
         # there are a class of errors we want to retry rather than just giving up
         if retryable_http_response_code?(response.code)
-          raise RetryableBadResponseError.new({}),
+          raise RetryableBadResponseError,
                 "Retryable bad response! Got code: #{response.code}, w/ message #{response.body}"
 
         else # not one we should retry
-          raise BadResponseError.new({}),
+          raise BadResponseError,
             "Bad response! Got code: #{response.code}, w/ message #{response.body}"
         end
       end
