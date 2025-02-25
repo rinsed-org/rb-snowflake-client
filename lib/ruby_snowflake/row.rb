@@ -16,7 +16,8 @@ module RubySnowflake
 
     # see: https://docs.snowflake.com/en/developer-guide/sql-api/handling-responses#getting-the-data-from-the-results
     def [](column)
-      index = column.is_a?(Numeric) ? Integer(column) : @column_to_index[column]
+      index = column.is_a?(Numeric) ? Integer(column) : @column_to_index[column.to_sym.downcase]
+
       return nil if index.nil?
       return nil if @data[index].nil?
 
