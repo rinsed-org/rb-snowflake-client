@@ -5,6 +5,8 @@ require "time"
 
 module RubySnowflake
   class Row
+    include Enumerable
+
     EPOCH_JULIAN_DAY_NUMBER = Date.new(1970,1,1).jd
     TIME_FORMAT = "%s.%N".freeze
 
@@ -50,12 +52,24 @@ module RubySnowflake
       end
     end
 
-    def to_h
-      output = {}
+    def each
+      return to_enum __method__ unless block_given?
+
       @column_to_index.each_pair do |name, index|
-        output[name.downcase] = self[index]
+        yield(output[name], self[index])
       end
-      output
+
+      self
+    end
+
+    def keys
+      map { |k, _| k }
+    end
+
+    alias columns keys
+
+    def values
+      map { |_, v| v }
     end
 
     def to_s
