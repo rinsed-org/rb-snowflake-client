@@ -73,6 +73,17 @@ RSpec.describe RubySnowflake::Client do
       end
     end
 
+    context "with lower case role name" do
+      let(:query) { "SELECT * from ruby_snowflake_client_testing.public.test_datatypes;" }
+
+      it "should work" do
+        result = client.fetch(query, role: "public")
+
+        expect(result).to be_a(RubySnowflake::Result)
+        expect(result.length).to eq(2)
+      end
+    end
+
     context "when we can't connect" do
       before do
         allow(Net::HTTP).to receive(:start).and_raise("Some connection error")

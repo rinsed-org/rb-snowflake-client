@@ -147,7 +147,7 @@ module RubySnowflake
       @_enable_polling_queries = false
     end
 
-    def query(query, warehouse: nil, streaming: false, database: nil, schema: nil, bindings: nil)
+    def query(query, warehouse: nil, streaming: false, database: nil, schema: nil, bindings: nil, role: nil)
       warehouse ||= @default_warehouse
       database ||= @default_database
 
@@ -158,6 +158,7 @@ module RubySnowflake
           "warehouse" => warehouse&.upcase,
           "schema" => schema&.upcase,
           "database" =>  database&.upcase,
+          "role" => role&.upcase,
           "statement" => query,
           "bindings" => bindings
         }
