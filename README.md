@@ -69,9 +69,8 @@ result = client.query("SELECT ID, NAME FROM SOMETABLE")
 
 # result is Enumerable
 result.each do |row|
-  puts row[:id]    # row supports access with symbols
-  puts row["name"] # or case insensitive strings
-  puts row.to_h    # and can produce a hash with keys/values
+  puts row["name"] # access data with lowercase string keys
+  puts row.to_h    # produce a hash with keys/values
 end
 ```
 
