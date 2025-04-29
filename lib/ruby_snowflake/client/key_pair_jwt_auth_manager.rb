@@ -30,8 +30,8 @@ module RubySnowflake
           private_key = OpenSSL::PKey.read(@private_key_pem)
 
           payload = {
-            :iss => "#{@organization.upcase}-#{@account.upcase}.#{@user.upcase}.#{public_key_fingerprint}",
-            :sub => "#{@organization.upcase}-#{@account.upcase}.#{@user.upcase}",
+            :iss => "#{account_name}.#{@user.upcase}.#{public_key_fingerprint}",
+            :sub => "#{account_name}.#{@user.upcase}",
             :iat => now,
             :exp => @token_expires_at
           }
@@ -43,6 +43,14 @@ module RubySnowflake
       private
         def jwt_token_expired?
           Time.now.to_i > @token_expires_at
+        end
+
+        def account_name
+          if @organization == nil || @organization == ""
+            @account.upcase
+          else
+            "#{@organization.upcase}-#{@account.upcase}"
+          end
         end
 
         def public_key_fingerprint

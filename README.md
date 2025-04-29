@@ -30,7 +30,7 @@ require "rb_snowflake_client"
 client = RubySnowflake::Client.new(
   "https://yourinstance.region.snowflakecomputing.com", # insert your URL here
   File.read("secrets/my_key.pem"),                      # your private key in PEM format (scroll down for instructions)
-  "snowflake-organization",                             # your account name (doesn't match your URL)
+  "snowflake-organization",                             # your account name (doesn't match your URL), using nil may be required depending on your snowflake account
   "snowflake-account",                                  # typically your subdomain
   "snowflake-user",                                     # Your snowflake user
   "some_warehouse",                                     # The name of your warehouse to use by default
@@ -49,6 +49,7 @@ Available ENV variables (see below in the config section for details)
 - `SNOWFLAKE_PRIVATE_KEY_PATH` or `SNOWFLAKE_PRIVATE_KEY`
   - Use either the key or the path. Key takes precedence if both are provided.
 - `SNOWFLAKE_ORGANIZATION`
+  - Optional, if you leave it off, the library will authenticate with an account name of only SNOWFLAKE_ACCOUNT
 - `SNOWFLAKE_ACCOUNT`
 - `SNOWFLAKE_USER`
 - `SNOWFLAKE_DEFAULT_WAREHOUSE`
@@ -215,7 +216,7 @@ or alternatively, use the client to verify:
 client = RubySnowflake::Client.new(
   "https://yourinstance.region.snowflakecomputing.com", # insert your URL here
   File.read("secrets/my_key.pem"),                      # path to your private key
-  "snowflake-organization",                             # your account name (doesn't match your URL)
+  "snowflake-organization",                             # your account name (doesn't match your URL), using nil may be required depending on your snowflake account
   "snowflake-account",                                  # typically your subdomain
   "snowflake-user",                                     # Your snowflake user
   "some_warehouse",                                     # The name of your warehouse to use by default
