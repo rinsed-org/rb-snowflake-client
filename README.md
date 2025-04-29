@@ -35,6 +35,7 @@ client = RubySnowflake::Client.new(
   "snowflake-user",                                     # Your snowflake user
   "some_warehouse",                                     # The name of your warehouse to use by default
   "some_database",                                      # The name of the database in the context of which the queries will run
+  default_role: "some_role",                            # The name of the role with which the queries will run. A `nil` value uses the primary role of the user.
   max_connections: 12,                                  # Config options can be passed in
   connection_timeout: 45,                               # See below for the full set of options
   query_timeout: 1200,                                  # how long to wait for queries, in seconds
@@ -52,6 +53,7 @@ Available ENV variables (see below in the config section for details)
 - `SNOWFLAKE_USER`
 - `SNOWFLAKE_DEFAULT_WAREHOUSE`
 - `SNOWFLAKE_DEFAULT_DATABASE`
+- `SNOWFLAKE_DEFAULT_ROLE`
 - `SNOWFLAKE_JWT_TOKEN_TTL`
 - `SNOWFLAKE_CONNECTION_TIMEOUT`
 - `SNOWFLAKE_MAX_CONNECTIONS`
@@ -109,6 +111,14 @@ client.query("SELECT * FROM BIGTABLE", warehouse: "FAST_WH")
 
 ```ruby
 client.query("SELECT * FROM BIGTABLE", schema: "MY_SCHEMA")
+```
+
+## Specifying role
+
+Queries by default use the primary role assigned to the account. If there are multiple roles you can switch between them on a per query basis.
+
+```ruby
+client.query("SELECT * FROM BIGTABLE", role: "MY_ROLE")
 ```
 
 ## Binding parameters

@@ -438,6 +438,7 @@ RSpec.describe RubySnowflake::Client do
     it_behaves_like "a configuration setting", :thread_scale_factor, 5
     it_behaves_like "a configuration setting", :http_retries, 2
     it_behaves_like "a configuration setting", :query_timeout, 2000
+    it_behaves_like "a configuration setting", :default_role, "OTHER_ROLE"
 
 
     context "with optional settings set through env variables" do
@@ -449,6 +450,7 @@ RSpec.describe RubySnowflake::Client do
         ENV["SNOWFLAKE_THREAD_SCALE_FACTOR"] = "3"
         ENV["SNOWFLAKE_HTTP_RETRIES"] = "33"
         ENV["SNOWFLAKE_QUERY_TIMEOUT"] = "3333"
+        ENV["SNOWFLAKE_DEFAULT_ROLE"] = "OTHER_ROLE"
       end
 
       after do
@@ -459,6 +461,7 @@ RSpec.describe RubySnowflake::Client do
         ENV["SNOWFLAKE_THREAD_SCALE_FACTOR"] = nil
         ENV["SNOWFLAKE_HTTP_RETRIES"] = nil
         ENV["SNOWFLAKE_QUERY_TIMEOUT"] = nil
+        ENV["SNOWFLAKE_DEFAULT_ROLE"] = nil
       end
 
       it "sets the settings" do
@@ -470,6 +473,7 @@ RSpec.describe RubySnowflake::Client do
         expect(client.thread_scale_factor).to eq 3
         expect(client.http_retries).to eq 33
         expect(client.query_timeout).to eq 3333
+        expect(client.default_role).to eq "OTHER_ROLE"
       end
     end
 
@@ -483,6 +487,7 @@ RSpec.describe RubySnowflake::Client do
         expect(client.max_threads_per_query).to eq RubySnowflake::Client::DEFAULT_MAX_THREADS_PER_QUERY
         expect(client.thread_scale_factor).to eq RubySnowflake::Client::DEFAULT_THREAD_SCALE_FACTOR
         expect(client.http_retries).to eq RubySnowflake::Client::DEFAULT_HTTP_RETRIES
+        expect(client.default_role).to be_nil
       end
     end
   end

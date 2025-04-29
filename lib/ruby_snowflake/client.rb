@@ -74,7 +74,7 @@ module RubySnowflake
     POLLING_INTERVAL = 2 # seconds
 
     # can't be set after initialization
-    attr_reader :connection_timeout, :max_connections, :logger, :max_threads_per_query, :thread_scale_factor, :http_retries, :query_timeout
+    attr_reader :connection_timeout, :max_connections, :logger, :max_threads_per_query, :thread_scale_factor, :http_retries, :query_timeout, :default_role
 
     def self.from_env(logger: DEFAULT_LOGGER,
                       log_level: DEFAULT_LOG_LEVEL,
@@ -102,6 +102,7 @@ module RubySnowflake
         ENV.fetch("SNOWFLAKE_USER"),
         ENV["SNOWFLAKE_DEFAULT_WAREHOUSE"],
         ENV["SNOWFLAKE_DEFAULT_DATABASE"],
+        default_role: ENV.fetch("SNOWFLAKE_DEFAULT_ROLE", nil),
         logger: logger,
         log_level: log_level,
         jwt_token_ttl: jwt_token_ttl,
@@ -116,6 +117,7 @@ module RubySnowflake
 
     def initialize(
       uri, private_key, organization, account, user, default_warehouse, default_database,
+      default_role: nil,
       logger: DEFAULT_LOGGER,
       log_level: DEFAULT_LOG_LEVEL,
       jwt_token_ttl: DEFAULT_JWT_TOKEN_TTL,
@@ -131,6 +133,7 @@ module RubySnowflake
         KeyPairJwtAuthManager.new(organization, account, user, private_key, jwt_token_ttl)
       @default_warehouse = default_warehouse
       @default_database = default_database
+      @default_role = default_role
 
       # set defaults for config settings
       @logger = logger
@@ -147,9 +150,10 @@ module RubySnowflake
       @_enable_polling_queries = false
     end
 
-    def query(query, warehouse: nil, streaming: false, database: nil, schema: nil, bindings: nil)
+    def query(query, warehouse: nil, streaming: false, database: nil, schema: nil, bindings: nil, role: nil)
       warehouse ||= @default_warehouse
       database ||= @default_database
+      role ||= @default_role
 
       query_start_time = Time.now.to_i
       response = nil
@@ -159,7 +163,8 @@ module RubySnowflake
           "schema" => schema&.upcase,
           "database" =>  database&.upcase,
           "statement" => query,
-          "bindings" => bindings
+          "bindings" => bindings,
+          "role" => role
         }
 
         response = request_with_auth_and_headers(
