@@ -67,6 +67,8 @@ module RubySnowflake
     DEFAULT_HTTP_RETRIES = 2
     # how long to wait to allow a query to complete, in seconds
     DEFAULT_QUERY_TIMEOUT = 600 # 10 minutes
+    # default role to use
+    DEFAULT_ROLE = nil
 
     JSON_PARSE_OPTIONS = { decimal_class: BigDecimal }.freeze
     VALID_RESPONSE_CODES = %w(200 202).freeze
@@ -84,7 +86,8 @@ module RubySnowflake
                       max_threads_per_query: env_option("SNOWFLAKE_MAX_THREADS_PER_QUERY", DEFAULT_MAX_THREADS_PER_QUERY),
                       thread_scale_factor: env_option("SNOWFLAKE_THREAD_SCALE_FACTOR", DEFAULT_THREAD_SCALE_FACTOR),
                       http_retries: env_option("SNOWFLAKE_HTTP_RETRIES", DEFAULT_HTTP_RETRIES),
-                      query_timeout: env_option("SNOWFLAKE_QUERY_TIMEOUT", DEFAULT_QUERY_TIMEOUT))
+                      query_timeout: env_option("SNOWFLAKE_QUERY_TIMEOUT", DEFAULT_QUERY_TIMEOUT),
+                      default_role: env_option("SNOWFLAKE_DEFAULT_ROLE", DEFAULT_ROLE))
       private_key =
         if key = ENV["SNOWFLAKE_PRIVATE_KEY"]
           key
