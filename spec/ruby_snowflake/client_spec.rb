@@ -161,6 +161,51 @@ RSpec.describe RubySnowflake::Client do
         expect { |b| result.each(&b) }.to yield_with_args(an_instance_of(RubySnowflake::Row))
       end
     end
+    
+    context "with row access methods" do
+      let(:query) { "SELECT id as ID, name as NAME from ruby_snowflake_client_testing.public.test_datatypes;" }
+      let(:row) { result.first }
+      
+      it "allows access with string keys" do
+        expect(row["id"]).to eq(1)
+        expect(row["name"]).to eq("John Smith")
+      end
+      
+      it "allows access with symbol keys" do
+        expect(row[:id]).to eq(1)
+        expect(row[:name]).to eq("John Smith")
+      end
+      
+      it "is case insensitive" do
+        expect(row["ID"]).to eq(1)
+        expect(row["Name"]).to eq("John Smith")
+        expect(row[:ID]).to eq(1)
+        expect(row[:Name]).to eq("John Smith")
+      end
+      
+      it "allows numeric index access" do
+        expect(row[0]).to eq(1) # ID column
+        expect(row[1]).to eq("John Smith") # NAME column
+      end
+      
+      it "returns nil for non-existent columns" do
+        expect(row["nonexistent"]).to be_nil
+        expect(row[:nonexistent]).to be_nil
+        expect(row[999]).to be_nil
+      end
+      
+      it "implements Enumerable methods" do
+        expect(row.keys).to contain_exactly("id", "name")
+        expect(row.values).to contain_exactly(1, "John Smith")
+        expect(row.to_h).to eq({"id" => 1, "name" => "John Smith"})
+        
+        mapped_data = row.map { |k, v| [k.upcase, v] }.to_h
+        expect(mapped_data).to eq({"ID" => 1, "NAME" => "John Smith"})
+        
+        filtered_data = row.select { |k, v| k == "id" }
+        expect(filtered_data.to_h).to eq({"id" => 1})
+      end
+    end
 
     context "with a more complex query" do
       # We have setup a simple table in our Snowflake account with the below structure:

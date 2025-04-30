@@ -18,7 +18,12 @@ module RubySnowflake
 
     # see: https://docs.snowflake.com/en/developer-guide/sql-api/handling-responses#getting-the-data-from-the-results
     def [](column)
-      index = column.is_a?(Numeric) ? Integer(column) : @column_to_index[column.to_sym.downcase]
+      index = if column.is_a?(Numeric)
+                Integer(column)
+              else
+                # Handle column names case-insensitively regardless of string or symbol
+                @column_to_index[column.to_s.downcase]
+              end
 
       return nil if index.nil?
       return nil if @data[index].nil?
@@ -56,7 +61,7 @@ module RubySnowflake
       return to_enum __method__ unless block_given?
 
       @column_to_index.each_pair do |name, index|
-        yield(output[name], self[index])
+        yield(name, self[index])
       end
 
       self

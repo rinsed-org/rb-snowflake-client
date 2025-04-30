@@ -72,9 +72,19 @@ result = client.query("SELECT ID, NAME FROM SOMETABLE")
 
 # result is Enumerable
 result.each do |row|
-  puts row[:id]    # row supports access with symbols
-  puts row["name"] # or case insensitive strings
-  puts row.to_h    # and can produce a hash with keys/values
+  # Row implements Enumerable and provides flexible column access:
+  puts row[:id]    # access with symbols (case-insensitive)
+  puts row["name"] # access with strings (case-insensitive)
+  puts row[0]      # access with numeric indices
+  
+  # Row has Enumerable methods
+  puts row.keys    # get all column names
+  puts row.values  # get all values
+  puts row.to_h    # convert to Hash with column names as keys
+  
+  # Use all Enumerable methods
+  row.each { |column_name, value| puts "#{column_name}: #{value}" }
+  filtered = row.select { |column, value| column.start_with?("i") }
 end
 ```
 
@@ -168,7 +178,9 @@ end
 
 1. Does not yet support multiple statements (work around is to wrap in `BEGIN ... END`)
 2. Only supports key pair authentication
-3. Its faster to work directly with the row value and not call to_h if you don't need to
+3. It's faster to work directly with the row value and not call to_h if you don't need to
+4. Rows are Enumerable, providing access to methods like `each`, `map`, `select`, `keys`, and `values`
+5. Row column access is case-insensitive and supports string keys, symbol keys, and numeric indices
 
 # Setting up a user for key pair authentication
 
