@@ -114,10 +114,6 @@ RSpec.describe RubySnowflake::Client do
       it "should raise an exception" do
         expect { result }.to raise_error do |error|
           expect(error).to be_a RubySnowflake::Error
-          # TODO: make sure to include query in context
-          #expect(error.sentry_context).to include(
-            #sql: query
-          #)
         end
       end
 
@@ -127,10 +123,6 @@ RSpec.describe RubySnowflake::Client do
           expect { result }.to raise_error do |error|
             expect(error).to be_a RubySnowflake::Error
             expect(error.message).to include "'TEST_DATABASE' does not exist or not authorized"
-            # TODO: make sure to include query in context
-            #expect(error.sentry_context).to include(
-              #sql: query
-            #)
           end
         end
 
@@ -143,10 +135,6 @@ RSpec.describe RubySnowflake::Client do
 
             expect { c.query(query) }.to raise_error do |error|
               expect(error).to be_a RubySnowflake::Error
-              # TODO: make sure to include query in context
-              #expect(error.sentry_context).to include(
-                #sql: query
-              #)
               expect(error.message).to include "TEST_DATABASE#{idx}"
             end
           end
@@ -489,6 +477,19 @@ RSpec.describe RubySnowflake::Client do
         expect(client.http_retries).to eq RubySnowflake::Client::DEFAULT_HTTP_RETRIES
         expect(client.default_role).to be_nil
       end
+    end
+  end
+
+  describe RubySnowflake::Error do
+    it "initializes with error details" do
+      error = described_class.new("Test error message")
+      expect(error.message).to eq "Test error message"
+    end
+
+    it "handles hash details" do
+      error_details = { code: 123, message: "Error occurred" }
+      error = described_class.new(error_details)
+      expect(error.message).to eq error_details.to_s
     end
   end
 end
