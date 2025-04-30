@@ -14,7 +14,7 @@ jobs:
       - name: Set up Ruby
         uses: ruby/setup-ruby@904f3fef85a9c80a3750cbe7d5159268fd5caa9f
         with:
-          ruby-version: '3.4.3'
+          ruby-version: '3.2.2'
       - name: Install dependencies
         run: bundle install
       - name: Build gem
