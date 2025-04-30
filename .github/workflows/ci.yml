@@ -12,11 +12,10 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Set up Ruby
-        uses: ruby/setup-ruby@904f3fef85a9c80a3750cbe7d5159268fd5caa9f
+        uses: ruby/ruby-setup@v1
         with:
-          ruby-version: '3.2.2'
-      - name: Install dependencies
-        run: bundle install
+          ruby-version: '3.3'
+          bundler-cache: true
       - name: Build gem
         run: rake build
       # Enable this section to allow debugging via SSH
