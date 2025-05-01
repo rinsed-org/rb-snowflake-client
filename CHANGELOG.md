@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced Row API to implement Enumerable interface
 - Added case-insensitive access to Row columns via both symbol and string keys
 - Added numeric column access to Row (e.g., `row[0]`)
-- Added Row helper methods: `keys`, `values`, `to_h`, and other Enumerable methods
+- Support setting organization or ENV["SNOWFLAKE_ORGANIZATION"] to nil or "" in JWT authentication
+- Added default_role parameter and SNOWFLAKE_DEFAULT_ROLE env variable
 
 ## [1.3.0] - 2025-01-03
 ### Changed
