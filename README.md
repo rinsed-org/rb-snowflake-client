@@ -76,12 +76,12 @@ result.each do |row|
   puts row[:id]    # access with symbols (case-insensitive)
   puts row["name"] # access with strings (case-insensitive)
   puts row[0]      # access with numeric indices
-  
+
   # Row has Enumerable methods
   puts row.keys    # get all column names
   puts row.values  # get all values
   puts row.to_h    # convert to Hash with column names as keys
-  
+
   # Use all Enumerable methods
   row.each { |column_name, value| puts "#{column_name}: #{value}" }
   filtered = row.select { |column, value| column.start_with?("i") }
@@ -235,6 +235,10 @@ client = RubySnowflake::Client.new(
   "some_database",                                      # The name of the database in the context of which the queries will run
 )
 ```
+
+# Change Log
+
+See [Change Log](CHANGELOG.md)
 
 # Code of conduct
 
