@@ -140,11 +140,11 @@ Say we have `BIGTABLE` with a `data` column of a type `VARIANT`.
 json_string = '{"valid": "json"}'
 query = "insert into BIGTABLE(data) select parse_json(?)"
 bindings = {
-  "1": {
-    "type": "TEXT",
-    "value": json_string
-  }
-}
+      "1" => {
+        "type" => "TEXT",
+        "value" => "Other Event"
+      }
+    }
 client.query(query, bindings: bindings)
 ```
 
