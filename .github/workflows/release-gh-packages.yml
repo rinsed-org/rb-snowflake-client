@@ -1,5 +1,6 @@
 name: Release to Github Packages
 on:
+  workflow_dispatch:
   push:
     branches:
       - "master"
