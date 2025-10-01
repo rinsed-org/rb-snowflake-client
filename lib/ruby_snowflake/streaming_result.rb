@@ -27,9 +27,17 @@ module RubySnowflake
         if data[index].is_a? Concurrent::Future
           data[index] = data[index].value # wait for it to finish
         end
+
         data[index].each do |row|
           yield wrap_row(row)
         end
+
+        # After iterating over the current partition, clear the data to release memory
+        # Using a symbol so:
+        # - The results array can be GCd
+        # - When looking at the list of partitions in `data` it is easier to detect
+        # - It won't trigger prefetch detection as `next_index`
+        data[index] = :finished
       end
     end
 
