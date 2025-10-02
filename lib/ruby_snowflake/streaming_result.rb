@@ -33,6 +33,7 @@ module RubySnowflake
         end
 
         # After iterating over the current partition, clear the data to release memory
+        data[index].clear
         # Using a symbol so:
         # - The results array can be GCd
         # - When looking at the list of partitions in `data` it is easier to detect
