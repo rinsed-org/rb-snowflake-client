@@ -34,9 +34,10 @@ module RubySnowflake
 
         # After iterating over the current partition, clear the data to release memory
         data[index].clear
-        # Using a symbol so:
-        # - The results array can be GCd
+
+        # Reassign to a symbol so:
         # - When looking at the list of partitions in `data` it is easier to detect
+        # - Will raise an exception if `data.each` is attempted to be called again
         # - It won't trigger prefetch detection as `next_index`
         data[index] = :finished
       end
