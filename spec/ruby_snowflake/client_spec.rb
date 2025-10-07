@@ -40,6 +40,32 @@ RSpec.describe RubySnowflake::Client do
       end
     end
 
+    context "without Datadog" do
+      let(:query) { "SELECT 1;" }
+
+      around do |example|
+        datadog = Datadog
+        Datadog = nil
+
+        begin
+          example.run
+        ensure
+          Datadog = datadog
+        end
+      end
+
+      it "should work" do
+        result = client.fetch(query)
+
+        expect(result).to be_a(RubySnowflake::Result)
+        expect(result.length).to eq(1)
+        rows = result.get_all_rows
+        expect(rows).to eq(
+          [{"1" => 1}]
+        )
+      end
+    end
+
     context "with lower case database name" do
       let(:query) { "SELECT * from public.test_datatypes;" }
 

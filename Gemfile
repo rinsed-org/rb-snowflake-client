@@ -14,5 +14,6 @@ group :development do
 end
 
 group :test do
+  gem "datadog"
   gem "rspec"
 end

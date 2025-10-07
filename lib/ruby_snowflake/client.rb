@@ -12,6 +12,12 @@ require "retryable"
 require "securerandom"
 require "uri"
 
+# Datadog is optional
+begin
+  require "datadog"
+rescue LoadError
+end
+
 require_relative "client/http_connection_wrapper"
 require_relative "client/key_pair_jwt_auth_manager"
 require_relative "client/single_thread_in_memory_strategy"
@@ -144,30 +150,32 @@ module RubySnowflake
     end
 
     def query(query, warehouse: nil, streaming: false, database: nil, schema: nil, bindings: nil, role: nil)
-      warehouse ||= @default_warehouse
-      database ||= @default_database
-      role ||= @default_role
+      with_instrumentation({ streaming: }) do
+        warehouse ||= @default_warehouse
+        database ||= @default_database
+        role ||= @default_role
 
-      query_start_time = Time.now.to_i
-      response = nil
-      connection_pool.with do |connection|
-        request_body = {
-          "warehouse" => warehouse&.upcase,
-          "schema" => schema&.upcase,
-          "database" =>  database&.upcase,
-          "statement" => query,
-          "bindings" => bindings,
-          "role" => role
-        }
+        query_start_time = Time.now.to_i
+        response = nil
+        connection_pool.with do |connection|
+          request_body = {
+            "warehouse" => warehouse&.upcase,
+            "schema" => schema&.upcase,
+            "database" =>  database&.upcase,
+            "statement" => query,
+            "bindings" => bindings,
+            "role" => role
+          }
 
-        response = request_with_auth_and_headers(
-          connection,
-          Net::HTTP::Post,
-          "/api/v2/statements?requestId=#{SecureRandom.uuid}&async=#{@_enable_polling_queries}",
-          request_body.to_json
-        )
+          response = request_with_auth_and_headers(
+            connection,
+            Net::HTTP::Post,
+            "/api/v2/statements?requestId=#{SecureRandom.uuid}&async=#{@_enable_polling_queries}",
+            request_body.to_json
+          )
+        end
+        retrieve_result_set(query_start_time, query, response, streaming)
       end
-      retrieve_result_set(query_start_time, query, response, streaming)
     end
 
     alias fetch query
@@ -328,6 +336,15 @@ module RubySnowflake
 
       def number_of_threads_to_use(partition_count)
         [[1, (partition_count / @thread_scale_factor.to_f).ceil].max, @max_threads_per_query].min
+      end
+
+      def with_instrumentation(tags, &block)
+        return block.call unless defined?(::Datadog) && ::Datadog
+
+        ::Datadog::Tracing.trace("snowflake_query") do |span|
+          tags.each { |key, value| span.set_tag(key, value) }
+          block.call
+        end
       end
   end
 end
