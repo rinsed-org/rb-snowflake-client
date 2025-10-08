@@ -342,11 +342,10 @@ module RubySnowflake
         return block.call unless defined?(::ActiveSupport) && ::ActiveSupport
 
         enhanced_tags = tags.merge(query_id: SecureRandom.uuid)
+        event_name = "rb_snowflake_client.snowflake_query"
 
-        ::ActiveSupport::Notifications.publish("rb_snowflake_client.snowflake_query.start", enhanced_tags)
-        ::ActiveSupport::Notifications.instrument("rb_snowflake_client.snowflake_query.finish", enhanced_tags) do
-          block.call
-        end
+        ::ActiveSupport::Notifications.publish("#{event_name}.start", enhanced_tags)
+        ::ActiveSupport::Notifications.instrument("#{event_name}.finish", enhanced_tags) { block.call }
       end
   end
 end
