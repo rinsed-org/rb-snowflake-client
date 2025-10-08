@@ -40,17 +40,17 @@ RSpec.describe RubySnowflake::Client do
       end
     end
 
-    context "without Datadog" do
+    context "without ActiveSupport" do
       let(:query) { "SELECT 1;" }
 
       around do |example|
-        datadog = Datadog
-        Datadog = nil
+        active_support = ::ActiveSupport
+        ActiveSupport = nil
 
         begin
           example.run
         ensure
-          Datadog = datadog
+          ActiveSupport = active_support
         end
       end
 

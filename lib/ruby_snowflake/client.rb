@@ -12,10 +12,10 @@ require "retryable"
 require "securerandom"
 require "uri"
 
-# Datadog is optional
 begin
-  require "datadog"
+  require "active_support"
 rescue LoadError
+  # This isn't required
 end
 
 require_relative "client/http_connection_wrapper"
@@ -339,10 +339,12 @@ module RubySnowflake
       end
 
       def with_instrumentation(tags, &block)
-        return block.call unless defined?(::Datadog) && ::Datadog
+        return block.call unless defined?(::ActiveSupport) && ::ActiveSupport
 
-        ::Datadog::Tracing.trace("snowflake_query") do |span|
-          tags.each { |key, value| span.set_tag(key, value) }
+        enhanced_tags = tags.merge(query_id: SecureRandom.uuid)
+
+        ::ActiveSupport::Notifications.publish("rb_snowflake_client.snowflake_query.start", enhanced_tags)
+        ::ActiveSupport::Notifications.instrument("rb_snowflake_client.snowflake_query.finish", enhanced_tags) do
           block.call
         end
       end
