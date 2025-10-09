@@ -154,26 +154,28 @@ For additional information about binding parameters refer to snowflake documenta
 
 If ActiveSupport is available, this library additionally emits [notification events](https://api.rubyonrails.org/classes/ActiveSupport/Notifications.html) around queries. You can subscribe to those to track timing, query counts, etc.
 
-* `rb_snowflake_client.snowflake_query.start`: published at query start
 * `rb_snowflake_client.snowflake_query.finish`: published at query end
 
-Both events receive a payload with the following properties
-* `query_name`: argument to query/fetch
-* `database`: argument to query/fetch
-* `schema`: argument to query/fetch
-* `warehouse`: argument to query/fetch
-* `query_id`: random UUID which is consistent between start and finish events for the same query
+Events receive a payload with the following properties:
+* `database`: snowflake database
+* `schema`: snowflake schema
+* `warehouse`: snowflake warehouse
+* `query_id`: random UUID for the query
+* `query_name`: argument passed to query/fetch
+* `exception`: present if the query raised an error, see [Notifications documentation](https://api.rubyonrails.org/classes/ActiveSupport/Notifications.html#module-ActiveSupport::Notifications-label-Subscribers) for details
+* `exception_object`: present if the query raised an error, see [Notifications documentation](https://api.rubyonrails.org/classes/ActiveSupport/Notifications.html#module-ActiveSupport::Notifications-label-Subscribers) for details
 
 An example integration with [Datadog](https://www.rubydoc.info/gems/datadog) might look like this:
 
 ```ruby
-ActiveSupport::Notifications.subscribe("rb_snowflake_client.snowflake_query.start") do |event|
-  Datadog::Tracing.trace(event.payload[:query_name] || "snowflake_query",
-    type: Datadog::Tracing::Metadata::Ext::AppTypes::TYPE_DB,
-    tags: event.payload,
-end
-ActiveSupport::Notifications.subscribe("rb_snowflake_client.snowflake_query.finish") do |event|
-  Datadog::Tracing.active_span&.finish
+ActiveSupport::Notifications.subscribe("rb_snowflake_client.snowflake_query.finish") do |name, start, finish, id, payload|
+  span = Datadog::Tracing.trace(payload[:query_name] || "snowflake_query",
+    resource: "snowflake",
+    start_time: start,
+    tags: payload,
+    type: Datadog::Tracing::Metadata::Ext::AppTypes::TYPE_DB)
+  
+  span.finish(finish)
 end
 ```
 

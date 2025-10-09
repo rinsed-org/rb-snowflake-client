@@ -14,6 +14,7 @@ require "uri"
 
 begin
   require "active_support"
+  require "active_support/notifications"
 rescue LoadError
   # This isn't required
 end
@@ -150,11 +151,11 @@ module RubySnowflake
     end
 
     def query(query, warehouse: nil, streaming: false, database: nil, schema: nil, bindings: nil, role: nil, query_name: nil)
-      with_instrumentation({ database:, schema:, warehouse:, query_name: }) do
-        warehouse ||= @default_warehouse
-        database ||= @default_database
-        role ||= @default_role
+      warehouse ||= @default_warehouse
+      database ||= @default_database
+      role ||= @default_role
 
+      with_instrumentation({ database:, schema:, warehouse:, query_name: }) do
         query_start_time = Time.now.to_i
         response = nil
         connection_pool.with do |connection|
@@ -341,11 +342,11 @@ module RubySnowflake
       def with_instrumentation(tags, &block)
         return block.call unless defined?(::ActiveSupport) && ::ActiveSupport
 
-        enhanced_tags = tags.merge(query_id: SecureRandom.uuid)
-        event_name = "rb_snowflake_client.snowflake_query"
-
-        ::ActiveSupport::Notifications.publish("#{event_name}.start", enhanced_tags)
-        ::ActiveSupport::Notifications.instrument("#{event_name}.finish", enhanced_tags) { block.call }
+        ::ActiveSupport::Notifications.instrument(
+            "rb_snowflake_client.snowflake_query.finish",
+            tags.merge(query_id: SecureRandom.uuid)) do
+          block.call
+        end
       end
   end
 end

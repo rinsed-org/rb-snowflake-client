@@ -27,24 +27,16 @@ RSpec.describe RubySnowflake::Client do
     let(:query) { "SELECT 1;" }
 
     it "emits instrumentation events" do
-      start_event_received = false
       finish_event_received = false
-      start_callback = lambda do |event|
-        expect(event.payload[:query_name]).to eq("test_query")
-        start_event_received = true
-      end
       finish_callback = lambda do |event|
         expect(event.payload[:query_name]).to eq("test_query")
         finish_event_received = true
       end
 
-      ActiveSupport::Notifications.subscribed(start_callback, "rb_snowflake_client.snowflake_query.start") do
-        ActiveSupport::Notifications.subscribed(finish_callback, "rb_snowflake_client.snowflake_query.finish") do
-          expect(result).to be_a(RubySnowflake::Result)
-        end
+      ActiveSupport::Notifications.subscribed(finish_callback, "rb_snowflake_client.snowflake_query.finish") do
+        expect(result).to be_a(RubySnowflake::Result)
       end
 
-      expect(start_event_received).to be(true)
       expect(finish_event_received).to be(true)
     end
 
@@ -62,15 +54,8 @@ RSpec.describe RubySnowflake::Client do
     end
 
     context "without ActiveSupport" do
-      around do |example|
-        active_support = ::ActiveSupport
-        ActiveSupport = nil
-
-        begin
-          example.run
-        ensure
-          ActiveSupport = active_support
-        end
+      before do
+        stub_const("ActiveSupport", nil) if defined?(ActiveSupport)
       end
 
       it "should work" do
