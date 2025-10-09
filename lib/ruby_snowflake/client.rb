@@ -149,8 +149,8 @@ module RubySnowflake
       @_enable_polling_queries = false
     end
 
-    def query(query, warehouse: nil, streaming: false, database: nil, schema: nil, bindings: nil, role: nil)
-      with_instrumentation({ streaming: }) do
+    def query(query, warehouse: nil, streaming: false, database: nil, schema: nil, bindings: nil, role: nil, query_name: nil)
+      with_instrumentation({ database:, schema:, warehouse:, query_name: }) do
         warehouse ||= @default_warehouse
         database ||= @default_database
         role ||= @default_role

@@ -23,20 +23,27 @@ RSpec.describe RubySnowflake::Client do
   end
 
   describe "querying" do
-    subject(:result) { client.query(query) }
+    subject(:result) { client.query(query, query_name: "test_query") }
     let(:query) { "SELECT 1;" }
 
     it "emits instrumentation events" do
       start_event_received = false
       finish_event_received = false
-      ActiveSupport::Notifications.subscribe("rb_snowflake_client.snowflake_query.start") do |*args|
+      start_callback = lambda do |event|
+        expect(event.payload[:query_name]).to eq("test_query")
         start_event_received = true
       end
-      ActiveSupport::Notifications.subscribe("rb_snowflake_client.snowflake_query.finish") do |*args|
+      finish_callback = lambda do |event|
+        expect(event.payload[:query_name]).to eq("test_query")
         finish_event_received = true
       end
 
-      expect(result).to be_a(RubySnowflake::Result)
+      ActiveSupport::Notifications.subscribed(start_callback, "rb_snowflake_client.snowflake_query.start") do
+        ActiveSupport::Notifications.subscribed(finish_callback, "rb_snowflake_client.snowflake_query.finish") do
+          expect(result).to be_a(RubySnowflake::Result)
+        end
+      end
+
       expect(start_event_received).to be(true)
       expect(finish_event_received).to be(true)
     end
