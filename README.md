@@ -150,6 +150,33 @@ client.query(query, bindings: bindings)
 
 For additional information about binding parameters refer to snowflake documentation: https://docs.snowflake.com/en/developer-guide/sql-api/submitting-requests#using-bind-variables-in-a-statement
 
+## Instrumentation
+
+If ActiveSupport is available, this library additionally emits [notification events](https://api.rubyonrails.org/classes/ActiveSupport/Notifications.html) around queries. You can subscribe to those to track timing, query counts, etc.
+
+* `rb_snowflake_client.snowflake_query.start`: published at query start
+* `rb_snowflake_client.snowflake_query.finish`: published at query end
+
+Both events receive a payload with the following properties
+* `query_name`: argument to query/fetch
+* `database`: argument to query/fetch
+* `schema`: argument to query/fetch
+* `warehouse`: argument to query/fetch
+* `query_id`: random UUID which is consistent between start and finish events for the same query
+
+An example integration with [Datadog](https://www.rubydoc.info/gems/datadog) might look like this:
+
+```ruby
+ActiveSupport::Notifications.subscribe("rb_snowflake_client.snowflake_query.start") do |event|
+  Datadog::Tracing.trace(event.payload[:query_name] || "snowflake_query",
+    type: Datadog::Tracing::Metadata::Ext::AppTypes::TYPE_DB,
+    tags: event.payload,
+end
+ActiveSupport::Notifications.subscribe("rb_snowflake_client.snowflake_query.finish") do |event|
+  Datadog::Tracing.active_span&.finish
+end
+```
+
 # Configuration Options
 
 The client supports the following configuration options, each with their own getter/setter except connection pool options which must be set at construction. Additionally, all except logger can be configured with environment variables (see above, but the pattern is like: "SNOWFLAKE_HTTP_RETRIES". Configuration options can only be set on initialization through `new` or `from_env`.
