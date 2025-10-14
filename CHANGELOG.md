@@ -11,7 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Instrumentation feature added for Active Support users
 - Added `query_timeout` as a per-query parameter, allowing timeout override on individual queries
-
 ### Fixed
 - `query_timeout` now properly sends timeout parameter to Snowflake API for server-side enforcement
 - Streaming mode now releases consumed records, fixing memory leak. Note: if you were iterating over streaming results more than once, this is a breaking change (though that was not its intended usage).
