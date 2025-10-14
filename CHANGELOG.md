@@ -6,8 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
+### Added
+- Instrumentation feature added for Active Support users
+- Added `query_timeout` as a per-query parameter, allowing timeout override on individual queries
 ### Fixed
-- Streaming mode now releases consumed records, fixing memory leak
+- `query_timeout` now properly sends timeout parameter to Snowflake API for server-side enforcement
+- Streaming mode now releases consumed records, fixing memory leak. Note: if you were iterating over streaming results more than once, this is a breaking change (though that was not its intended usage).
 
 ## [1.4.0] - 2025-05-01
 ### Added

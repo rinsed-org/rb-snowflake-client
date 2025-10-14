@@ -132,6 +132,14 @@ Queries by default use the primary role assigned to the account. If there are mu
 client.query("SELECT * FROM BIGTABLE", role: "MY_ROLE")
 ```
 
+## Query timeout
+
+You can override the query timeout on a per-query basis. The timeout is specified in seconds and will be enforced by both Snowflake server-side and the client-side polling mechanism.
+
+```ruby
+client.query("SELECT * FROM BIGTABLE", query_timeout: 30)
+```
+
 ## Binding parameters
 
 Say we have `BIGTABLE` with a `data` column of a type `VARIANT`.

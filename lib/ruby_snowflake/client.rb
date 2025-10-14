@@ -150,10 +150,11 @@ module RubySnowflake
       @_enable_polling_queries = false
     end
 
-    def query(query, warehouse: nil, streaming: false, database: nil, schema: nil, bindings: nil, role: nil, query_name: nil)
+    def query(query, warehouse: nil, streaming: false, database: nil, schema: nil, bindings: nil, role: nil, query_name: nil, query_timeout: nil)
       warehouse ||= @default_warehouse
       database ||= @default_database
       role ||= @default_role
+      query_timeout ||= @query_timeout
 
       with_instrumentation({ database:, schema:, warehouse:, query_name: }) do
         query_start_time = Time.now.to_i
@@ -165,7 +166,8 @@ module RubySnowflake
             "database" =>  database&.upcase,
             "statement" => query,
             "bindings" => bindings,
-            "role" => role
+            "role" => role,
+            "timeout" => query_timeout
           }
 
           response = request_with_auth_and_headers(
@@ -175,7 +177,7 @@ module RubySnowflake
             request_body.to_json
           )
         end
-        retrieve_result_set(query_start_time, query, response, streaming)
+        retrieve_result_set(query_start_time, query, response, streaming, query_timeout)
       end
     end
 
@@ -260,7 +262,7 @@ module RubySnowflake
         end
       end
 
-      def poll_for_completion_or_timeout(query_start_time, query, statement_handle)
+      def poll_for_completion_or_timeout(query_start_time, query, statement_handle, query_timeout)
         first_data_json_body = nil
 
         connection_pool.with do |connection|
@@ -268,7 +270,7 @@ module RubySnowflake
             sleep POLLING_INTERVAL
 
             elapsed_time = Time.now.to_i - query_start_time
-            if elapsed_time > @query_timeout
+            if elapsed_time > query_timeout
               cancelled = attempt_to_cancel_and_silence_errors(connection, statement_handle)
               raise QueryTimeoutError.new("Query timed out. Query cancelled? #{cancelled}; Duration: #{elapsed_time}; Query: '#{query}'")
             end
@@ -296,12 +298,12 @@ module RubySnowflake
         false
       end
 
-      def retrieve_result_set(query_start_time, query, response, streaming)
+      def retrieve_result_set(query_start_time, query, response, streaming, query_timeout)
         json_body = JSON.parse(response.body, JSON_PARSE_OPTIONS)
         statement_handle = json_body["statementHandle"]
 
         if response.code == POLLING_RESPONSE_CODE
-          result_response = poll_for_completion_or_timeout(query_start_time, query, statement_handle)
+          result_response = poll_for_completion_or_timeout(query_start_time, query, statement_handle, query_timeout)
           json_body = JSON.parse(result_response.body, JSON_PARSE_OPTIONS)
         end
 

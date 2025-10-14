@@ -135,6 +135,31 @@ RSpec.describe RubySnowflake::Client do
       end
     end
 
+    context "with per-query timeout override" do
+      let(:query) { "SELECT 1" }
+
+      it "sends the timeout parameter in the request body" do
+        allow_any_instance_of(Net::HTTP).to receive(:request) do |instance, request|
+          request_body = JSON.parse(request.body)
+          expect(request_body["timeout"]).to eq(30)
+
+          response = Net::HTTPSuccess.new("1.1", "200", "OK")
+          allow(response).to receive(:body).and_return({
+            statementHandle: "test-handle",
+            resultSetMetaData: {
+              partitionInfo: [{}],
+              rowType: [{ name: "1", type: "FIXED" }]
+            },
+            data: [[1]]
+          }.to_json)
+          response
+        end
+
+        result = client.query(query, query_timeout: 30)
+        expect(result).to be_a(RubySnowflake::Result)
+      end
+    end
+
     context "when the query errors" do
       let(:query) { "INVALID QUERY;" }
       it "should raise an exception" do
