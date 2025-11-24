@@ -42,7 +42,7 @@ GEM
       base64
     logger (1.7.0)
     method_source (1.1.0)
-    minitest (5.26.0)
+    minitest (5.26.2)
     parallel (1.27.0)
     pry (0.15.2)
       coderay (~> 1.1)
