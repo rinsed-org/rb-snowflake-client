@@ -6,21 +6,28 @@ require_relative "result"
 
 module RubySnowflake
   class StreamingResult < Result
-    def initialize(partition_count, row_type_data, retreive_proc)
+    def initialize(partition_count, row_type_data, retreive_proc, prefetch_threads: 1)
       super(partition_count, row_type_data)
       @retreive_proc = retreive_proc
+      @prefetch_threads = prefetch_threads
     end
 
     def each
       return to_enum(:each) unless block_given?
 
-      thread_pool = Concurrent::FixedThreadPool.new 1
+      thread_pool = Concurrent::FixedThreadPool.new(@prefetch_threads)
 
       data.each_with_index do |_partition, index|
-        next_index = [index+1, data.size-1].min
-        if data[next_index].nil? # prefetch
-          data[next_index] = Concurrent::Future.execute(executor: thread_pool) do
-            @retreive_proc.call(next_index)
+        # Prefetch the next N partitions (where N = prefetch_threads)
+        # This allows parallel fetching while maintaining memory efficiency
+        @prefetch_threads.times do |offset|
+          next_index = index + offset + 1
+          break if next_index >= data.size
+
+          if data[next_index].nil? # not yet fetched or prefetched
+            data[next_index] = Concurrent::Future.execute(executor: thread_pool) do
+              @retreive_proc.call(next_index)
+            end
           end
         end
 
@@ -41,6 +48,10 @@ module RubySnowflake
         # - It won't trigger prefetch detection as `next_index`
         data[index] = :finished
       end
+
+      # Ensure thread pool is properly shut down
+      thread_pool.shutdown
+      thread_pool.wait_for_termination
     end
 
 
