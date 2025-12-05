@@ -153,5 +153,29 @@ RSpec.describe RubySnowflake::StreamingResult do
         expect(enumerator.to_a.length).to eq(10)
       end
     end
+
+    context 'when an exception occurs during iteration' do
+      let(:prefetch_threads) { 3 }
+
+      it 'properly shuts down thread pool even on exception' do
+        thread_pool = nil
+        allow(Concurrent::FixedThreadPool).to receive(:new).and_wrap_original do |method, *args|
+          thread_pool = method.call(*args)
+          thread_pool
+        end
+
+        # Raise exception after processing 2 rows
+        count = 0
+        expect do
+          subject.each do |row|
+            count += 1
+            raise StandardError, "Test error" if count == 2
+          end
+        end.to raise_error(StandardError, "Test error")
+
+        # Thread pool should still be shut down
+        expect(thread_pool).to be_shutdown
+      end
+    end
   end
 end
