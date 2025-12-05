@@ -264,9 +264,13 @@ module RubySnowflake
 
         # there are a class of errors we want to retry rather than just giving up
         if retryable_http_response_code?(response.code) && !statement_timeout_error?(response)
+          # 401 indicates auth token rejected - invalidate so retry gets a fresh token
+          if response.code.to_i == 401
+            @key_pair_jwt_auth_manager.invalidate_token
+          end
+
           raise RetryableBadResponseError,
                 "Retryable bad response! Got code: #{response.code}, w/ message #{response.body}"
-
         else # not one we should retry
           raise BadResponseError,
             "Bad response! Got code: #{response.code}, w/ message #{response.body}"
@@ -279,7 +283,7 @@ module RubySnowflake
         # retry (in order): bad request, forbidden (token expired in flight), method not allowed,
         # request timeout, too many requests, anything in the 500 range (504 is fairly common),
         # anything in the 3xx range as those are mostly "redirect" responses
-        [400, 403, 405, 408, 429].include?(code.to_i) || (500..599).include?(code.to_i) ||
+        [400, 401, 403, 405, 408, 429].include?(code.to_i) || (500..599).include?(code.to_i) ||
          (300..399).include?(code.to_i)
       end
 

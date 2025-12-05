@@ -45,28 +45,36 @@ module RubySnowflake
         end
       end
 
+      # Force token regeneration on next call to jwt_token, used when Snowflake rejects the current token
+      def invalidate_token
+        @token_semaphore.acquire do
+          @token_expires_at = Time.now.to_i - 1
+        end
+      end
+
       private
-        def jwt_token_expired?
-          Time.now.to_i > @token_expires_at
+
+      def jwt_token_expired?
+        Time.now.to_i > @token_expires_at
+      end
+
+      def account_name
+        if @organization == nil || @organization == ""
+          @account.upcase
+        else
+          "#{@organization.upcase}-#{@account.upcase}"
         end
+      end
 
-        def account_name
-          if @organization == nil || @organization == ""
-            @account.upcase
-          else
-            "#{@organization.upcase}-#{@account.upcase}"
-          end
-        end
+      def public_key_fingerprint
+        return @public_key_fingerprint unless @public_key_fingerprint.nil?
 
-        def public_key_fingerprint
-          return @public_key_fingerprint unless @public_key_fingerprint.nil?
+        public_key_der = OpenSSL::PKey::RSA.new(@private_key_pem).public_key.to_der
+        digest = OpenSSL::Digest::SHA256.new.digest(public_key_der)
+        fingerprint = Base64.strict_encode64(digest)
 
-          public_key_der = OpenSSL::PKey::RSA.new(@private_key_pem).public_key.to_der
-          digest = OpenSSL::Digest::SHA256.new.digest(public_key_der)
-          fingerprint = Base64.strict_encode64(digest)
-
-          @public_key_fingerprint = "SHA256:#{fingerprint}"
-        end
+        @public_key_fingerprint = "SHA256:#{fingerprint}"
+      end
     end
   end
 end

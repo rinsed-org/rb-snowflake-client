@@ -75,4 +75,18 @@ RSpec.describe RubySnowflake::Client::KeyPairJwtAuthManager do
       end
     end
   end
+
+  describe "#invalidate_token" do
+    it "causes the next jwt_token call to regenerate even within token TTL" do
+      first_token = subject.jwt_token
+      first_decoded = JWT.decode(first_token, OpenSSL::PKey::RSA.new(private_key).public_key, true, { algorithm: 'RS256' })[0]
+
+      sleep 1.1 # ensure different iat timestamp
+      subject.invalidate_token
+      second_token = subject.jwt_token
+      second_decoded = JWT.decode(second_token, OpenSSL::PKey::RSA.new(private_key).public_key, true, { algorithm: 'RS256' })[0]
+
+      expect(second_decoded["iat"]).to be > first_decoded["iat"]
+    end
+  end
 end
