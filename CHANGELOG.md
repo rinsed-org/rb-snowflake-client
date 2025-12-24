@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
+### Added
+- `Result#empty?` - Check if result set has no rows
+- `Row#dig` - Safe nested value access for VARIANT/JSON columns
+- `Row#to_h` - Explicit hash conversion (was implicit via Enumerable)
+- `Row#key?` / `Row#has_key?` - Check if column exists
+- `Row#fetch` - Access column with default value or error handling
 
 ## [1.5.0] - 2025-10-14
 ### Added

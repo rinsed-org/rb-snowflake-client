@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    rb_snowflake_client (1.4.0)
+    rb_snowflake_client (1.5.0)
       bigdecimal (>= 3.0)
       concurrent-ruby (>= 1.2)
       connection_pool (>= 2.4)
@@ -65,7 +65,7 @@ GEM
     securerandom (0.4.1)
     tzinfo (2.0.6)
       concurrent-ruby (~> 1.0)
-    uri (1.0.4)
+    uri (1.1.1)
 
 PLATFORMS
   arm64-darwin-22
@@ -81,4 +81,4 @@ DEPENDENCIES
   rspec
 
 BUNDLED WITH
-   2.5.10
+  4.0.3
