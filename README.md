@@ -46,8 +46,10 @@ RubySnowflake::Client.from_env
 ```
 Available ENV variables (see below in the config section for details)
 - `SNOWFLAKE_URI`
+- `SNOWFLAKE_AUTHENTICATOR` - Authentication method: "keypair_jwt" (default) or "externalbrowser"
 - `SNOWFLAKE_PRIVATE_KEY_PATH` or `SNOWFLAKE_PRIVATE_KEY`
   - Use either the key or the path. Key takes precedence if both are provided.
+  - Only required for keypair_jwt authentication
 - `SNOWFLAKE_ORGANIZATION`
   - Optional, if you leave it off, the library will authenticate with an account name of only SNOWFLAKE_ACCOUNT
 - `SNOWFLAKE_ACCOUNT`
@@ -62,6 +64,8 @@ Available ENV variables (see below in the config section for details)
 - `SNOWFLAKE_THREAD_SCALE_FACTOR`
 - `SNOWFLAKE_HTTP_RETRIES`
 - `SNOWFLAKE_QUERY_TIMEOUT`
+- `SNOWFLAKE_SSO_TIMEOUT` - Seconds to wait for browser authentication (default: 120), only used with externalbrowser auth
+- `SNOWFLAKE_SSO_PORT` - Port for SSO callback server (default: 0 for random port), only used with externalbrowser auth
 
 ## Make queries
 
@@ -142,6 +146,8 @@ client.query("SELECT * FROM BIGTABLE", query_timeout: 30)
 
 ## Binding parameters
 
+**Note:** Binding parameters are only supported with key pair JWT authentication. If you're using external browser authentication, you'll need to use string interpolation or switch to key pair authentication.
+
 Say we have `BIGTABLE` with a `data` column of a type `VARIANT`.
 
 ```ruby
@@ -214,7 +220,7 @@ end
 # Gotchas
 
 1. Does not yet support multiple statements (work around is to wrap in `BEGIN ... END`)
-2. Only supports key pair authentication
+2. Supports key pair JWT authentication and external browser (SSO/SAML) authentication
 3. It's faster to work directly with the row value and not call to_h if you don't need to
 4. Rows are Enumerable, providing access to methods like `each`, `map`, `select`, `keys`, and `values`
 5. Row column access is case-insensitive and supports string keys, symbol keys, and numeric indices
@@ -272,6 +278,58 @@ client = RubySnowflake::Client.new(
   "some_database",                                      # The name of the database in the context of which the queries will run
 )
 ```
+
+# Using external browser authentication (SSO/SAML)
+
+Use `externalbrowser` when your organization requires SSO/SAML for Snowflake.
+
+**Not suitable for:** Headless environments, automated scripts, or if you need binding parameters.
+
+## How it works
+
+1. Client opens your browser to Snowflake's SSO login page
+2. You authenticate via your identity provider (Okta, Azure AD, etc.)
+3. Session token is cached for 59 minutes
+
+## Setup
+
+Set `SNOWFLAKE_AUTHENTICATOR=externalbrowser`:
+
+```bash
+export SNOWFLAKE_URI="https://yourinstance.region.snowflakecomputing.com"
+export SNOWFLAKE_AUTHENTICATOR="externalbrowser"
+export SNOWFLAKE_ACCOUNT="your-account"
+export SNOWFLAKE_USER="your-username"
+export SNOWFLAKE_DEFAULT_WAREHOUSE="your-warehouse"
+export SNOWFLAKE_DEFAULT_DATABASE="your-database"
+
+# Optional
+export SNOWFLAKE_SSO_TIMEOUT=180  # default: 120 seconds
+export SNOWFLAKE_SSO_PORT=8080    # default: 0 (random port)
+```
+
+Then create your client:
+```ruby
+client = RubySnowflake::Client.from_env
+```
+
+Or specify directly:
+```ruby
+client = RubySnowflake::Client.new(
+  "https://yourinstance.region.snowflakecomputing.com",
+  nil,  # no private key needed
+  nil,
+  "your-account",
+  "your-username",
+  "your-warehouse",
+  "your-database",
+  authenticator: "externalbrowser"
+)
+```
+
+**Limitations:**
+- No binding parameters (use string interpolation)
+- Requires interactive browser access
 
 # Change Log
 

@@ -10,7 +10,9 @@ require "logger"
 require "net/http"
 require "retryable"
 require "securerandom"
+require "stringio"
 require "uri"
+require "zlib"
 
 begin
   require "active_support"
@@ -19,8 +21,12 @@ rescue LoadError
   # This isn't required
 end
 
+require_relative "client/auth_manager"
 require_relative "client/http_connection_wrapper"
 require_relative "client/key_pair_jwt_auth_manager"
+require_relative "client/browser_launcher"
+require_relative "client/sso_callback_server"
+require_relative "client/external_browser_auth_manager"
 require_relative "client/single_thread_in_memory_strategy"
 require_relative "client/streaming_result_strategy"
 require_relative "client/threaded_in_memory_strategy"
@@ -44,7 +50,10 @@ module RubySnowflake
   class MissingConfig < Error ; end
   class RetryableBadResponseError < Error ; end
   class RequestError < Error ; end
-  class QueryTimeoutError < Error ;  end
+  class QueryTimeoutError < Error ; end
+  class AuthenticationError < Error ; end
+  class SsoTimeoutError < Error ; end
+  class BrowserLaunchError < Error ; end
 
   class Client
     DEFAULT_LOGGER = Logger.new(STDOUT)
@@ -66,6 +75,10 @@ module RubySnowflake
     DEFAULT_QUERY_TIMEOUT = 600 # 10 minutes
     # default role to use
     DEFAULT_ROLE = nil
+    # seconds to wait for SSO callback
+    DEFAULT_SSO_TIMEOUT = 120
+    # SSO callback server port (0 = random available port)
+    DEFAULT_SSO_PORT = 0
 
     JSON_PARSE_OPTIONS = { decimal_class: BigDecimal }.freeze
     VALID_RESPONSE_CODES = %w(200 202).freeze
@@ -84,20 +97,27 @@ module RubySnowflake
                       thread_scale_factor: env_option("SNOWFLAKE_THREAD_SCALE_FACTOR", DEFAULT_THREAD_SCALE_FACTOR),
                       http_retries: env_option("SNOWFLAKE_HTTP_RETRIES", DEFAULT_HTTP_RETRIES),
                       query_timeout: env_option("SNOWFLAKE_QUERY_TIMEOUT", DEFAULT_QUERY_TIMEOUT),
-                      default_role: env_option("SNOWFLAKE_DEFAULT_ROLE", DEFAULT_ROLE))
-      private_key =
-        if key = ENV["SNOWFLAKE_PRIVATE_KEY"]
-          key
-        elsif path = ENV["SNOWFLAKE_PRIVATE_KEY_PATH"]
-          File.read(path)
-        else
-          raise MissingConfig, "Either ENV['SNOWFLAKE_PRIVATE_KEY'] or ENV['SNOWFLAKE_PRIVATE_KEY_PATH'] must be set"
-        end
+                      default_role: env_option("SNOWFLAKE_DEFAULT_ROLE", DEFAULT_ROLE),
+                      sso_timeout: env_option("SNOWFLAKE_SSO_TIMEOUT", DEFAULT_SSO_TIMEOUT),
+                      sso_port: env_option("SNOWFLAKE_SSO_PORT", DEFAULT_SSO_PORT))
+      authenticator = ENV.fetch("SNOWFLAKE_AUTHENTICATOR", "keypair_jwt")
+
+      private_key = nil
+      if authenticator.downcase == "keypair_jwt"
+        private_key =
+          if key = ENV["SNOWFLAKE_PRIVATE_KEY"]
+            key
+          elsif path = ENV["SNOWFLAKE_PRIVATE_KEY_PATH"]
+            File.read(path)
+          else
+            raise MissingConfig, "For keypair_jwt auth, either ENV['SNOWFLAKE_PRIVATE_KEY'] or ENV['SNOWFLAKE_PRIVATE_KEY_PATH'] must be set"
+          end
+      end
 
       new(
         ENV.fetch("SNOWFLAKE_URI"),
         private_key,
-        ENV.fetch("SNOWFLAKE_ORGANIZATION"),
+        ENV.fetch("SNOWFLAKE_ORGANIZATION", nil),
         ENV.fetch("SNOWFLAKE_ACCOUNT"),
         ENV.fetch("SNOWFLAKE_USER"),
         ENV["SNOWFLAKE_DEFAULT_WAREHOUSE"],
@@ -112,6 +132,9 @@ module RubySnowflake
         thread_scale_factor: thread_scale_factor,
         http_retries: http_retries,
         query_timeout: query_timeout,
+        authenticator: authenticator,
+        sso_timeout: sso_timeout,
+        sso_port: sso_port
       )
     end
 
@@ -126,11 +149,12 @@ module RubySnowflake
       max_threads_per_query: DEFAULT_MAX_THREADS_PER_QUERY,
       thread_scale_factor: DEFAULT_THREAD_SCALE_FACTOR,
       http_retries: DEFAULT_HTTP_RETRIES,
-      query_timeout: DEFAULT_QUERY_TIMEOUT
+      query_timeout: DEFAULT_QUERY_TIMEOUT,
+      authenticator: "keypair_jwt",
+      sso_timeout: DEFAULT_SSO_TIMEOUT,
+      sso_port: DEFAULT_SSO_PORT
     )
       @base_uri = uri
-      @key_pair_jwt_auth_manager =
-        KeyPairJwtAuthManager.new(organization, account, user, private_key, jwt_token_ttl)
       @default_warehouse = default_warehouse
       @default_database = default_database
       @default_role = default_role
@@ -145,6 +169,30 @@ module RubySnowflake
       @http_retries = http_retries
       @query_timeout = query_timeout
 
+      @auth_manager = if private_key.respond_to?(:apply_auth)
+        private_key
+      else
+        case authenticator.to_s.downcase
+        when "keypair_jwt", "snowflake_jwt"
+          KeyPairJwtAuthManager.new(organization, account, user, private_key, jwt_token_ttl)
+        when "externalbrowser"
+          account_identifier = Client.build_account_identifier(organization, account)
+          @externalbrowser_base_uri = "https://#{account_identifier.downcase}.snowflakecomputing.com"
+          ExternalBrowserAuthManager.new(
+            @externalbrowser_base_uri,
+            account_identifier,
+            user,
+            sso_timeout: sso_timeout,
+            sso_port: sso_port,
+            logger: @logger
+          )
+        else
+          raise MissingConfig.new("Unsupported authenticator: #{authenticator}. Supported: keypair_jwt, externalbrowser")
+        end
+      end
+
+      @key_pair_jwt_auth_manager = @auth_manager if @auth_manager.is_a?(KeyPairJwtAuthManager)
+
       # Do NOT use normally, this exists for tests so we can reliably trigger the polling
       # response workflow from snowflake in tests
       @_enable_polling_queries = false
@@ -156,28 +204,37 @@ module RubySnowflake
       role ||= @default_role
       query_timeout ||= @query_timeout
 
-      with_instrumentation({ database:, schema:, warehouse:, query_name: }) do
-        query_start_time = Time.now.to_i
-        response = nil
-        connection_pool.with do |connection|
-          request_body = {
-            "warehouse" => warehouse&.upcase,
-            "schema" => schema&.upcase,
-            "database" =>  database&.upcase,
-            "statement" => query,
-            "bindings" => bindings,
-            "role" => role,
-            "timeout" => query_timeout
-          }
-
-          response = request_with_auth_and_headers(
-            connection,
-            Net::HTTP::Post,
-            "/api/v2/statements?requestId=#{SecureRandom.uuid}&async=#{@_enable_polling_queries}",
-            request_body.to_json
-          )
+      if @auth_manager.respond_to?(:uses_v1_api?) && @auth_manager.uses_v1_api?
+        if bindings && !bindings.empty?
+          raise ArgumentError, "Bindings are not supported with externalbrowser authentication. Use string interpolation or switch to keypair auth."
         end
-        retrieve_result_set(query_start_time, query, response, streaming, query_timeout)
+        with_instrumentation({ database:, schema:, warehouse:, query_name: }) do
+          query_v1(query, warehouse: warehouse, database: database, schema: schema, role: role, streaming: streaming, query_timeout: query_timeout)
+        end
+      else
+        with_instrumentation({ database:, schema:, warehouse:, query_name: }) do
+          query_start_time = Time.now.to_i
+          response = nil
+          connection_pool.with do |connection|
+            request_body = {
+              "warehouse" => warehouse&.upcase,
+              "schema" => schema&.upcase,
+              "database" =>  database&.upcase,
+              "statement" => query,
+              "bindings" => bindings,
+              "role" => role,
+              "timeout" => query_timeout
+            }
+
+            response = request_with_auth_and_headers(
+              connection,
+              Net::HTTP::Post,
+              "/api/v2/statements?requestId=#{SecureRandom.uuid}&async=#{@_enable_polling_queries}",
+              request_body.to_json
+            )
+          end
+          retrieve_result_set(query_start_time, query, response, streaming, query_timeout)
+        end
       end
     end
 
@@ -191,7 +248,11 @@ module RubySnowflake
     # This method can be used to populate the JWT token used for authentication
     # in tests that require time travel.
     def create_jwt_token
-      @key_pair_jwt_auth_manager.jwt_token
+      if @auth_manager.respond_to?(:jwt_token)
+        @auth_manager.jwt_token
+      else
+        @auth_manager.token
+      end
     end
 
     private_class_method :env_option
@@ -216,8 +277,7 @@ module RubySnowflake
         request = request_class.new(uri)
         request["Content-Type"] = "application/json"
         request["Accept"] = "application/json"
-        request["Authorization"] = "Bearer #{@key_pair_jwt_auth_manager.jwt_token}"
-        request["X-Snowflake-Authorization-Token-Type"] = "KEYPAIR_JWT"
+        @auth_manager.apply_auth(request)
         request.body = body unless body.nil?
 
         Retryable.retryable(tries: @http_retries + 1,
@@ -339,6 +399,114 @@ module RubySnowflake
 
       def number_of_threads_to_use(partition_count)
         [[1, (partition_count / @thread_scale_factor.to_f).ceil].max, @max_threads_per_query].min
+      end
+
+      def query_v1(query, warehouse:, database:, schema:, role:, streaming:, query_timeout:)
+        response = nil
+        connection_pool.with do |connection|
+          uri = URI.parse("#{@externalbrowser_base_uri}/queries/v1/query-request?requestId=#{SecureRandom.uuid}")
+          request = Net::HTTP::Post.new(uri)
+          request["Content-Type"] = "application/json"
+          request["Accept"] = "application/snowflake"
+          @auth_manager.apply_auth(request)
+
+          request_body = {
+            "sqlText" => query,
+            "sequenceId" => 1,
+            "querySubmissionTime" => (Time.now.to_f * 1000).to_i
+          }
+          request_body["warehouse"] = warehouse.upcase if warehouse
+          request_body["database"] = database.upcase if database
+          request_body["schema"] = schema.upcase if schema
+          request_body["role"] = role if role
+          request_body["timeout"] = query_timeout if query_timeout
+
+          request.body = request_body.to_json
+
+          Retryable.retryable(tries: @http_retries + 1,
+                              sleep: lambda {|n| 2**n },
+                              on: [RetryableBadResponseError, OpenSSL::SSL::SSLError],
+                              log_method: retryable_log_method) do
+            bm = Benchmark.measure { response = connection.request(request) }
+            logger.debug { "HTTP Request time: #{bm.real}" }
+            raise_on_bad_response(response)
+          end
+        end
+
+        json_body = JSON.parse(response.body, JSON_PARSE_OPTIONS)
+
+        unless json_body["success"]
+          error_msg = json_body["message"] || "Unknown error"
+          error_code = json_body["code"]
+          raise BadResponseError.new("Snowflake query failed (#{error_code}): #{error_msg}")
+        end
+
+        data = json_body["data"]
+        chunks = data["chunks"] || []
+        chunk_headers = data["chunkHeaders"] || {}
+
+        logger.debug { "v1 API response - rowset: #{data["rowset"]&.size || 0} rows, chunks: #{chunks.size}" }
+
+        partition_info = [{ "rowCount" => data["rowset"]&.size || 0 }] +
+                         chunks.map { |c| { "rowCount" => c["rowCount"] } }
+        statement_json = {
+          "resultSetMetaData" => { "rowType" => data["rowtype"], "partitionInfo" => partition_info },
+          "data" => data["rowset"] || []
+        }
+
+        retrieve_proc = ->(index) {
+          chunk = chunks[index - 1]
+          uri = URI.parse(chunk["url"])
+          http = Net::HTTP.new(uri.host, uri.port)
+          http.use_ssl = (uri.scheme == "https")
+
+          request = Net::HTTP::Get.new(uri)
+          chunk_headers.each { |k, v| request[k] = v }
+
+          begin
+            response = http.request(request)
+            unless response.code.start_with?("2")
+              raise BadResponseError.new("S3 chunk fetch failed (#{response.code}): #{response.body[0..500]}")
+            end
+
+            body = response.body
+            is_gzip = response["Content-Encoding"]&.downcase == "gzip" ||
+                      (body.bytesize >= 2 && body.byteslice(0, 2) == "\x1f\x8b".b)
+            if is_gzip
+              body = Zlib::GzipReader.new(StringIO.new(body)).read
+            end
+
+            parsed = JSON.parse("[#{body}]")
+            logger.debug { "Chunk #{index} fetched: #{parsed.size} rows" }
+            parsed
+          rescue => e
+            logger.error("Failed to fetch chunk #{index}: #{e.class} - #{e.message}")
+            raise
+          end
+        }
+
+        if streaming
+          StreamingResultStrategy.result(statement_json, retrieve_proc)
+        elsif chunks.empty?
+          result = Result.new(1, data["rowtype"])
+          result[0] = data["rowset"]
+          result
+        else
+          num_threads = number_of_threads_to_use(partition_info.size)
+          if num_threads == 1
+            SingleThreadInMemoryStrategy.result(statement_json, retrieve_proc)
+          else
+            ThreadedInMemoryStrategy.result(statement_json, retrieve_proc, num_threads)
+          end
+        end
+      end
+
+      def self.build_account_identifier(organization, account)
+        if organization.nil? || organization.empty?
+          account.upcase
+        else
+          "#{organization.upcase}-#{account.upcase}"
+        end
       end
 
       def with_instrumentation(tags, &block)

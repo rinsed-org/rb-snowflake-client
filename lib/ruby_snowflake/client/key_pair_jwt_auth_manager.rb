@@ -3,10 +3,13 @@
 require "jwt"
 require "openssl"
 require "concurrent"
+require_relative "auth_manager"
 
 module RubySnowflake
   class Client
     class KeyPairJwtAuthManager
+      include AuthManager
+
       # requires text of a PEM formatted RSA private key
       def initialize(organization, account, user, private_key, jwt_token_ttl)
         @organization = organization
@@ -40,17 +43,20 @@ module RubySnowflake
         end
       end
 
+      alias token jwt_token
+
+      def apply_auth(request)
+        request["Authorization"] = "Bearer #{jwt_token}"
+        request["X-Snowflake-Authorization-Token-Type"] = "KEYPAIR_JWT"
+      end
+
       private
         def jwt_token_expired?
           Time.now.to_i > @token_expires_at
         end
 
         def account_name
-          if @organization == nil || @organization == ""
-            @account.upcase
-          else
-            "#{@organization.upcase}-#{@account.upcase}"
-          end
+          Client.build_account_identifier(@organization, @account)
         end
 
         def public_key_fingerprint

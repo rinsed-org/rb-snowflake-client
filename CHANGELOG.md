@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
+### Added
+- External browser authentication via `SNOWFLAKE_AUTHENTICATOR=externalbrowser` with `SNOWFLAKE_SSO_TIMEOUT` and `SNOWFLAKE_SSO_PORT` options
+- v1 Query API support (enables session token authentication)
+
+### Changed
+- `SNOWFLAKE_ORGANIZATION` is now optional (can be omitted or set to nil for some account configurations)
+- `SNOWFLAKE_PRIVATE_KEY`/`SNOWFLAKE_PRIVATE_KEY_PATH` only required for keypair_jwt authentication
 
 ## [1.5.0] - 2025-10-14
 ### Added
