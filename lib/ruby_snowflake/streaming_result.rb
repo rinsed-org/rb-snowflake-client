@@ -25,7 +25,7 @@ module RubySnowflake
         end
 
         if data[index].is_a? Concurrent::Future
-          data[index] = data[index].value # wait for it to finish
+          data[index] = data[index].value! # wait for it to finish, raises on exception
         end
 
         data[index].each do |row|

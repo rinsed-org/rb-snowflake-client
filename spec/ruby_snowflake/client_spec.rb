@@ -576,6 +576,23 @@ RSpec.describe RubySnowflake::Client do
     end
   end
 
+  describe ".build_account_identifier" do
+    it "formats with organization and account" do
+      result = described_class.build_account_identifier("myorg", "myacct")
+      expect(result).to eq("MYORG-MYACCT")
+    end
+
+    it "formats with only account when organization is nil" do
+      result = described_class.build_account_identifier(nil, "myacct")
+      expect(result).to eq("MYACCT")
+    end
+
+    it "formats with only account when organization is empty string" do
+      result = described_class.build_account_identifier("", "myacct")
+      expect(result).to eq("MYACCT")
+    end
+  end
+
   describe RubySnowflake::Error do
     it "initializes with error details" do
       error = described_class.new("Test error message")
