@@ -35,6 +35,11 @@ RSpec.describe RubySnowflake::Row do
     let(:data) { ["Alice", "30"] }
     let(:row) { described_class.new(row_types, column_to_index, data) }
 
+    it "returns value for existing key" do
+      expect(row.fetch("name")).to eq("Alice")
+      expect(row.fetch(:age)).to eq(30)
+    end
+
     it "returns default value for missing key" do
       expect(row.fetch("missing", "default")).to eq("default")
       expect(row.fetch(:nonexistent, 0)).to eq(0)
@@ -48,6 +53,38 @@ RSpec.describe RubySnowflake::Row do
     it "raises KeyError for missing key without default or block" do
       expect { row.fetch("missing") }.to raise_error(KeyError, /key not found/)
       expect { row.fetch(:nonexistent) }.to raise_error(KeyError, /key not found/)
+    end
+  end
+
+  describe "#key?" do
+    let(:row_types) do
+      [
+        {type: :text, scale: 0, precision: 0, name: :name},
+        {type: :fixed, scale: 0, precision: 0, name: :age}
+      ]
+    end
+    let(:column_to_index) { {"name" => 0, "age" => 1} }
+    let(:data) { ["Alice", "30"] }
+    let(:row) { described_class.new(row_types, column_to_index, data) }
+
+    it "returns true for existing column" do
+      expect(row.key?("name")).to be true
+      expect(row.key?(:age)).to be true
+    end
+
+    it "returns false for non-existing column" do
+      expect(row.key?("missing")).to be false
+      expect(row.key?(:nonexistent)).to be false
+    end
+
+    it "is case-insensitive" do
+      expect(row.key?("NAME")).to be true
+      expect(row.key?("Name")).to be true
+    end
+
+    it "works with has_key? alias" do
+      expect(row.has_key?("name")).to be true
+      expect(row.has_key?("missing")).to be false
     end
   end
 end
