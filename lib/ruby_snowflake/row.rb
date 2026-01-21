@@ -77,10 +77,6 @@ module RubySnowflake
       map { |_, v| v }
     end
 
-    def to_h
-      @column_to_index.each_with_object({}) { |(name, _), hash| hash[name] = self[name] }
-    end
-
     def dig(key, *rest)
       value = self[key]
       return value if rest.empty? || value.nil?
