@@ -156,7 +156,12 @@ module RubySnowflake
       role ||= @default_role
       query_timeout ||= @query_timeout
 
-      with_instrumentation({ database:, schema:, warehouse:, query_name: }) do
+      with_instrumentation({
+        database: database,
+        schema: schema,
+        warehouse: warehouse,
+        query_name: query_name
+      }) do
         query_start_time = Time.now.to_i
         response = nil
         connection_pool.with do |connection|
