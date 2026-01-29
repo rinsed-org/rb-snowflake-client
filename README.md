@@ -158,6 +158,22 @@ client.query(query, bindings: bindings)
 
 For additional information about binding parameters refer to snowflake documentation: https://docs.snowflake.com/en/developer-guide/sql-api/submitting-requests#using-bind-variables-in-a-statement
 
+## Session parameters
+
+You can set Snowflake session parameters on a per-query basis by passing a hash to the `parameters` option. These parameters affect query behavior and can be used to set things like query tags, timezones, and other session-level settings.
+
+```ruby
+client.query(
+  "SELECT * FROM BIGTABLE",
+  parameters: {
+    "QUERY_TAG" => "my_custom_tag",
+    "TIMEZONE" => "America/Los_Angeles"
+  }
+)
+```
+
+For a full list of available parameters, refer to the Snowflake documentation: https://docs.snowflake.com/en/developer-guide/sql-api/reference
+
 ## Instrumentation
 
 If ActiveSupport is available, this library additionally emits [notification events](https://api.rubyonrails.org/classes/ActiveSupport/Notifications.html) around queries. You can subscribe to those to track timing, query counts, etc.

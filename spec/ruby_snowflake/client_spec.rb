@@ -160,6 +160,58 @@ RSpec.describe RubySnowflake::Client do
       end
     end
 
+    context "with parameters" do
+      let(:query) { "SELECT 1" }
+
+      it "sends parameters in the request body" do
+        allow_any_instance_of(Net::HTTP).to receive(:request) do |instance, request|
+          request_body = JSON.parse(request.body)
+          expect(request_body["parameters"]).to eq({
+            "QUERY_TAG" => "my_custom_tag",
+            "TIMEZONE" => "America/Los_Angeles"
+          })
+
+          response = Net::HTTPSuccess.new("1.1", "200", "OK")
+          allow(response).to receive(:body).and_return({
+            statementHandle: "test-handle",
+            resultSetMetaData: {
+              partitionInfo: [{}],
+              rowType: [{ name: "1", type: "FIXED" }]
+            },
+            data: [[1]]
+          }.to_json)
+          response
+        end
+
+        result = client.query(query, parameters: {
+          "QUERY_TAG" => "my_custom_tag",
+          "TIMEZONE" => "America/Los_Angeles"
+        })
+        expect(result).to be_a(RubySnowflake::Result)
+      end
+
+      it "does not include parameters when nil" do
+        allow_any_instance_of(Net::HTTP).to receive(:request) do |instance, request|
+          request_body = JSON.parse(request.body)
+          expect(request_body["parameters"]).to be_nil
+
+          response = Net::HTTPSuccess.new("1.1", "200", "OK")
+          allow(response).to receive(:body).and_return({
+            statementHandle: "test-handle",
+            resultSetMetaData: {
+              partitionInfo: [{}],
+              rowType: [{ name: "1", type: "FIXED" }]
+            },
+            data: [[1]]
+          }.to_json)
+          response
+        end
+
+        result = client.query(query)
+        expect(result).to be_a(RubySnowflake::Result)
+      end
+    end
+
     context "when the query errors" do
       let(:query) { "INVALID QUERY;" }
       it "should raise an exception" do
