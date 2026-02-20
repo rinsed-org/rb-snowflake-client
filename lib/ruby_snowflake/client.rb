@@ -311,8 +311,6 @@ module RubySnowflake
         retrieve_proc = ->(index) { retrieve_partition_data(statement_handle, index) }
 
         if streaming
-          # Use same thread calculation logic for streaming to enable parallel prefetching
-          # This dramatically improves iteration performance while maintaining memory efficiency
           StreamingResultStrategy.result(json_body, retrieve_proc, prefetch_threads: num_threads)
         elsif num_threads == 1
           SingleThreadInMemoryStrategy.result(json_body, retrieve_proc)

@@ -7,6 +7,8 @@ require_relative "result"
 module RubySnowflake
   class StreamingResult < Result
     def initialize(partition_count, row_type_data, retreive_proc, prefetch_threads: 1)
+      raise ArgumentError, "prefetch_threads must be a positive integer, got: #{prefetch_threads}" unless prefetch_threads.is_a?(Integer) && prefetch_threads > 0
+
       super(partition_count, row_type_data)
       @retreive_proc = retreive_proc
       @prefetch_threads = prefetch_threads
@@ -19,13 +21,11 @@ module RubySnowflake
 
       begin
         data.each_with_index do |_partition, index|
-          # Prefetch the next N partitions (where N = prefetch_threads)
-          # This allows parallel fetching while maintaining memory efficiency
           @prefetch_threads.times do |offset|
             next_index = index + offset + 1
             break if next_index >= data.size
 
-            if data[next_index].nil? # not yet fetched or prefetched
+            if data[next_index].nil?
               data[next_index] = Concurrent::Future.execute(executor: thread_pool) do
                 @retreive_proc.call(next_index)
               end
@@ -50,9 +50,8 @@ module RubySnowflake
           data[index] = :finished
         end
       ensure
-        # Ensure thread pool is properly shut down even if an exception occurs
         thread_pool.shutdown
-        thread_pool.wait_for_termination
+        thread_pool.wait_for_termination(5)
       end
     end
 

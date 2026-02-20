@@ -32,6 +32,18 @@ RSpec.describe RubySnowflake::StreamingResult do
         expect(subject.instance_variable_get(:@prefetch_threads)).to eq(4)
       end
     end
+
+    context 'with invalid prefetch_threads' do
+      it 'raises ArgumentError for zero' do
+        expect { described_class.new(partition_count, row_type_data, retrieve_proc, prefetch_threads: 0) }
+          .to raise_error(ArgumentError, /prefetch_threads must be a positive integer/)
+      end
+
+      it 'raises ArgumentError for negative values' do
+        expect { described_class.new(partition_count, row_type_data, retrieve_proc, prefetch_threads: -1) }
+          .to raise_error(ArgumentError, /prefetch_threads must be a positive integer/)
+      end
+    end
   end
 
   describe '#each' do
