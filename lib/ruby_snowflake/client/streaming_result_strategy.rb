@@ -3,13 +3,14 @@
 module RubySnowflake
   class Client
     class StreamingResultStrategy
-      def self.result(statement_json_body, retreive_proc)
+      def self.result(statement_json_body, retreive_proc, prefetch_threads: 1)
         partitions = statement_json_body["resultSetMetaData"]["partitionInfo"]
 
         result = StreamingResult.new(
           partitions.size,
           statement_json_body["resultSetMetaData"]["rowType"],
-          retreive_proc
+          retreive_proc,
+          prefetch_threads: prefetch_threads
         )
         result[0] = statement_json_body["data"]
 

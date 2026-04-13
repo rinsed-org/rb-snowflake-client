@@ -312,7 +312,7 @@ module RubySnowflake
         retrieve_proc = ->(index) { retrieve_partition_data(statement_handle, index) }
 
         if streaming
-          StreamingResultStrategy.result(json_body, retrieve_proc)
+          StreamingResultStrategy.result(json_body, retrieve_proc, prefetch_threads: num_threads)
         elsif num_threads == 1
           SingleThreadInMemoryStrategy.result(json_body, retrieve_proc)
         else
