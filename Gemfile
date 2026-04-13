@@ -9,7 +9,7 @@ gem "bundler"
 gem "rake"
 
 group :development, :test do
-  gem "activesupport"
+  gem "activesupport", "~> 8.0.4", ">= 8.0.4.1"
 end
 
 group :development do
