@@ -6,8 +6,9 @@ RSpec.describe RubySnowflake::Client::KeyPairJwtAuthManager do
   let(:user) { "user" }
   let(:private_key) { OpenSSL::PKey::RSA.new(2048).to_pem }
   let(:jwt_token_ttl) { 3600 }
+  let(:private_key_passphrase) { nil }
   
-  subject { described_class.new(organization, account, user, private_key, jwt_token_ttl) }
+  subject { described_class.new(organization, account, user, private_key, jwt_token_ttl, private_key_passphrase) }
 
   describe "#jwt_token" do
     context "when creating a JWT token" do
@@ -34,6 +35,31 @@ RSpec.describe RubySnowflake::Client::KeyPairJwtAuthManager do
         
         # Expect the token to expire in approximately jwt_token_ttl seconds
         expect(decoded_token["exp"] - now).to be_within(5).of(jwt_token_ttl)
+      end
+    end
+
+    context "when the private key is encrypted" do
+      let(:private_key) do
+        key = OpenSSL::PKey::RSA.new(2048)
+        cipher = OpenSSL::Cipher.new("AES-128-CBC")
+        key.to_pem(cipher, "password")
+      end
+      let(:private_key_passphrase) { "password" }
+
+      it "generates a valid token" do
+        expect(subject.jwt_token).to be_a(String)
+      end
+
+      it "generates a token with the correct claims" do
+        # Use the JWT gem to decode the token
+        token = subject.jwt_token
+        decoded_token = JWT.decode(token, OpenSSL::PKey::RSA.new(private_key, private_key_passphrase).public_key, true, { algorithm: 'RS256' })[0]
+
+        expect(decoded_token["iss"]).to include(account.upcase)
+        expect(decoded_token["iss"]).to include(user.upcase)
+        expect(decoded_token["sub"]).to eq("#{account.upcase}.#{user.upcase}")
+        expect(decoded_token["iat"]).to be_a(Integer)
+        expect(decoded_token["exp"]).to be_a(Integer)
       end
     end
   end
