@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [1.6.0] - 2026-04-13
+### Added
+- Support for passing a passphrase when using an encrypted private key for JWT authentication (#166)
+### Security
+- Bumped `activesupport` to patch CVEs (#167)
+
 ## [1.5.0] - 2025-10-14
 ### Added
 - Instrumentation feature added for Active Support users
