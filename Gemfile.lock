@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    rb_snowflake_client (1.5.0)
+    rb_snowflake_client (1.6.0)
       bigdecimal (>= 3.0)
       concurrent-ruby (>= 1.2)
       connection_pool (>= 2.4)
@@ -37,7 +37,7 @@ GEM
     drb (2.2.3)
     i18n (1.14.8)
       concurrent-ruby (~> 1.0)
-    json (2.15.1)
+    json (2.19.3)
     jwt (3.1.2)
       base64
     logger (1.7.0)
