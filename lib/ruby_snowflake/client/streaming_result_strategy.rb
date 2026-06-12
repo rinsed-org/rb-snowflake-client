@@ -11,6 +11,7 @@ module RubySnowflake
           statement_json_body["resultSetMetaData"]["rowType"],
           retreive_proc
         )
+
         result[0] = statement_json_body["data"]
 
         result

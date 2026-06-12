@@ -576,6 +576,112 @@ RSpec.describe RubySnowflake::Client do
     end
   end
 
+  describe ".build_account_identifier" do
+    it "formats with organization and account" do
+      result = described_class.build_account_identifier("myorg", "myacct")
+      expect(result).to eq("MYORG-MYACCT")
+    end
+
+    it "formats with only account when organization is nil" do
+      result = described_class.build_account_identifier(nil, "myacct")
+      expect(result).to eq("MYACCT")
+    end
+
+    it "formats with only account when organization is empty string" do
+      result = described_class.build_account_identifier("", "myacct")
+      expect(result).to eq("MYACCT")
+    end
+  end
+
+  describe ".from_env authentication config" do
+    around do |example|
+      old_env = ENV.to_h
+      ENV.clear
+      ENV["SNOWFLAKE_URI"] = "https://acct.snowflakecomputing.com"
+      ENV["SNOWFLAKE_ACCOUNT"] = "acct"
+      ENV["SNOWFLAKE_USER"] = "user"
+      example.run
+    ensure
+      ENV.replace(old_env)
+    end
+
+    context "with keypair_jwt authentication" do
+      before do
+        ENV["SNOWFLAKE_AUTHENTICATOR"] = "keypair_jwt"
+        ENV["SNOWFLAKE_PRIVATE_KEY"] = OpenSSL::PKey::RSA.new(2048).to_pem
+      end
+
+      it "raises when SNOWFLAKE_ORGANIZATION is not set" do
+        expect { described_class.from_env }.to raise_error(RubySnowflake::MissingConfig, /SNOWFLAKE_ORGANIZATION/)
+      end
+
+      it "builds a client when SNOWFLAKE_ORGANIZATION is set" do
+        ENV["SNOWFLAKE_ORGANIZATION"] = "org"
+        expect(described_class.from_env).to be_a(described_class)
+      end
+    end
+
+    context "with externalbrowser authentication" do
+      before { ENV["SNOWFLAKE_AUTHENTICATOR"] = "externalbrowser" }
+
+      it "builds a client without SNOWFLAKE_ORGANIZATION" do
+        expect(described_class.from_env).to be_a(described_class)
+      end
+
+      it "builds a client without a private key" do
+        expect(described_class.from_env).to be_a(described_class)
+      end
+    end
+  end
+
+  describe "external browser (v1 API) query routing" do
+    subject(:client) do
+      described_class.new(
+        "https://acct.snowflakecomputing.com", nil, nil, "acct", "user", nil, nil,
+        authenticator: "externalbrowser"
+      )
+    end
+
+    before do
+      auth_manager = client.instance_variable_get(:@auth_manager)
+      allow(auth_manager).to receive(:apply_auth)
+    end
+
+    def stub_v1_response(body)
+      response = Net::HTTPSuccess.new("1.1", "200", "OK")
+      allow(response).to receive(:code).and_return("200")
+      allow(response).to receive(:body).and_return(body.to_json)
+      allow(response).to receive(:[]).and_return(nil)
+      allow_any_instance_of(Net::HTTP).to receive(:request).and_return(response)
+    end
+
+    it "returns a Result for a single-partition query" do
+      stub_v1_response(
+        success: true,
+        data: {
+          rowtype: [{ "name" => "1", "type" => "FIXED" }],
+          rowset: [[1]],
+          chunks: []
+        }
+      )
+
+      result = client.query("SELECT 1")
+      expect(result).to be_a(RubySnowflake::Result)
+      expect(result.get_all_rows).to eq([{ "1" => 1 }])
+    end
+
+    it "raises a BadResponseError when the v1 response is unsuccessful" do
+      stub_v1_response(success: false, message: "boom", code: "1234")
+
+      expect { client.query("SELECT 1") }.to raise_error(RubySnowflake::BadResponseError, /boom/)
+    end
+
+    it "rejects bindings because v1 does not support them" do
+      expect { client.query("SELECT ?", bindings: { "1" => { type: "TEXT", value: "x" } }) }
+        .to raise_error(ArgumentError, /Bindings are not supported/)
+    end
+  end
+
   describe RubySnowflake::Error do
     it "initializes with error details" do
       error = described_class.new("Test error message")
