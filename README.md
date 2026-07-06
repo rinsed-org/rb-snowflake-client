@@ -50,6 +50,10 @@ Available ENV variables (see below in the config section for details)
   - Use either the key or the path. Key takes precedence if both are provided.
 - `SNOWFLAKE_PRIVATE_KEY_PASSPHRASE`
   - Optional, if you are using an encrypted private key
+- `SNOWFLAKE_ACCESS_TOKEN`
+  - Alternative to a private key: authenticate with a pre-issued bearer token — a
+    Programmatic Access Token (PAT) or OAuth token. When set, no private key is
+    required. (Also available as the `access_token:` keyword on `Client.new`.)
 - `SNOWFLAKE_ORGANIZATION`
   - Optional, if you leave it off, the library will authenticate with an account name of only SNOWFLAKE_ACCOUNT
 - `SNOWFLAKE_ACCOUNT`
@@ -216,7 +220,7 @@ end
 # Gotchas
 
 1. Does not yet support multiple statements (work around is to wrap in `BEGIN ... END`)
-2. Only supports key pair authentication
+2. Supports key-pair (JWT) and bearer-token (PAT / OAuth) authentication
 3. It's faster to work directly with the row value and not call to_h if you don't need to
 4. Rows are Enumerable, providing access to methods like `each`, `map`, `select`, `keys`, and `values`
 5. Row column access is case-insensitive and supports string keys, symbol keys, and numeric indices

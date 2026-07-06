@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
+### Added
+- `access_token:` option on `Client.new` / `Client.from_env` (`SNOWFLAKE_ACCESS_TOKEN`)
+  to authenticate with a pre-issued **bearer token** — e.g. a Programmatic Access Token
+  (PAT) or OAuth token — instead of a key-pair JWT. The token is sent as
+  `Authorization: Bearer <token>` with no `X-Snowflake-Authorization-Token-Type` header
+  (Snowflake infers the type). Closes #161.
 
 ## [1.6.0] - 2026-04-13
 ### Added

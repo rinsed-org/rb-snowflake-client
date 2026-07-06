@@ -85,13 +85,16 @@ module RubySnowflake
                       http_retries: env_option("SNOWFLAKE_HTTP_RETRIES", DEFAULT_HTTP_RETRIES),
                       query_timeout: env_option("SNOWFLAKE_QUERY_TIMEOUT", DEFAULT_QUERY_TIMEOUT),
                       default_role: env_option("SNOWFLAKE_DEFAULT_ROLE", DEFAULT_ROLE))
+      access_token = ENV["SNOWFLAKE_ACCESS_TOKEN"]
       private_key =
         if key = ENV["SNOWFLAKE_PRIVATE_KEY"]
           key
         elsif path = ENV["SNOWFLAKE_PRIVATE_KEY_PATH"]
           File.read(path)
+        elsif access_token
+          nil # authenticating with a bearer token (PAT/OAuth); no key needed
         else
-          raise MissingConfig, "Either ENV['SNOWFLAKE_PRIVATE_KEY'] or ENV['SNOWFLAKE_PRIVATE_KEY_PATH'] must be set"
+          raise MissingConfig, "Set ENV['SNOWFLAKE_ACCESS_TOKEN'], or ENV['SNOWFLAKE_PRIVATE_KEY'] / ENV['SNOWFLAKE_PRIVATE_KEY_PATH']"
         end
 
       new(
@@ -104,6 +107,7 @@ module RubySnowflake
         ENV["SNOWFLAKE_DEFAULT_WAREHOUSE"],
         ENV["SNOWFLAKE_DEFAULT_DATABASE"],
         default_role: ENV.fetch("SNOWFLAKE_DEFAULT_ROLE", nil),
+        access_token: access_token,
         logger: logger,
         log_level: log_level,
         jwt_token_ttl: jwt_token_ttl,
@@ -119,6 +123,7 @@ module RubySnowflake
     def initialize(
       uri, private_key, private_key_passphrase = nil, organization, account, user, default_warehouse, default_database,
       default_role: nil,
+      access_token: nil,
       logger: DEFAULT_LOGGER,
       log_level: DEFAULT_LOG_LEVEL,
       jwt_token_ttl: DEFAULT_JWT_TOKEN_TTL,
@@ -130,6 +135,7 @@ module RubySnowflake
       query_timeout: DEFAULT_QUERY_TIMEOUT
     )
       @base_uri = uri
+      @access_token = access_token
       @key_pair_jwt_auth_manager =
         KeyPairJwtAuthManager.new(organization, account, user, private_key, jwt_token_ttl, private_key_passphrase)
       @default_warehouse = default_warehouse
@@ -212,13 +218,27 @@ module RubySnowflake
         @port ||= URI.parse(@base_uri).port
       end
 
+      # Authenticate with a pre-issued bearer token (a Programmatic Access Token or
+      # OAuth token) when one was supplied, otherwise mint a key-pair JWT. A bearer
+      # token is sent with no X-Snowflake-Authorization-Token-Type header — Snowflake
+      # infers the type (the header is optional per the SQL API docs).
+      def auth_headers
+        if @access_token
+          { "Authorization" => "Bearer #{@access_token}" }
+        else
+          {
+            "Authorization" => "Bearer #{@key_pair_jwt_auth_manager.jwt_token}",
+            "X-Snowflake-Authorization-Token-Type" => "KEYPAIR_JWT"
+          }
+        end
+      end
+
       def request_with_auth_and_headers(connection, request_class, path, body=nil)
         uri = URI.parse("#{@base_uri}#{path}")
         request = request_class.new(uri)
         request["Content-Type"] = "application/json"
         request["Accept"] = "application/json"
-        request["Authorization"] = "Bearer #{@key_pair_jwt_auth_manager.jwt_token}"
-        request["X-Snowflake-Authorization-Token-Type"] = "KEYPAIR_JWT"
+        auth_headers.each { |name, value| request[name] = value }
         request.body = body unless body.nil?
 
         Retryable.retryable(tries: @http_retries + 1,
