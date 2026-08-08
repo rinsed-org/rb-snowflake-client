@@ -39,6 +39,10 @@ module RubySnowflake
 
     alias length size
 
+    def empty?
+      size.zero?
+    end
+
     def first
       wrap_row(data.first.first)
     end

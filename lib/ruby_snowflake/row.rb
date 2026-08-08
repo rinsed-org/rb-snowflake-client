@@ -77,6 +77,26 @@ module RubySnowflake
       map { |_, v| v }
     end
 
+    def dig(key, *rest)
+      value = self[key]
+      return value if rest.empty? || value.nil?
+      return nil unless value.respond_to?(:dig)
+      value.dig(*rest)
+    end
+
+    def key?(key)
+      @column_to_index.key?(key.to_s.downcase)
+    end
+    alias has_key? key?
+
+    def fetch(key, *args, &block)
+      raise ArgumentError, "wrong number of arguments (given #{args.size + 1}, expected 1..2)" if args.size > 1
+      return self[key] if key?(key)
+      return args.first if args.any?
+      return yield(key) if block
+      raise KeyError, "key not found: #{key.inspect}"
+    end
+
     def to_s
       to_h.to_s
     end
