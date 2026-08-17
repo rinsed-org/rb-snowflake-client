@@ -14,8 +14,23 @@ Gem::Specification.new do |s|
   s.homepage = "https://github.com/rinsed-org/rb-snowflake-client"
   s.license = "MIT"
 
+  # Gemfile.lock is excluded deliberately, and it is a security fix rather than tidiness.
+  #
+  # A lockfile has no function inside a published gem -- Bundler resolves a consumer's tree from the
+  # dependency constraints below, never from a lockfile shipped in a dependency -- but container image
+  # scanners read any Gemfile.lock they find on disk as a manifest of what is installed. So our
+  # DEVELOPMENT lock became a vulnerability report against every consumer: an image that installs this
+  # gem gets .../gems/rb_snowflake_client-1.6.0/Gemfile.lock scanned, and the pinned
+  # concurrent-ruby 1.3.6, jwt 3.1.2 and json 2.15.1 are reported as CRITICAL findings on the consumer.
+  #
+  # That is all three CRITICAL findings on the DataExtract Lambda image, and they are unfixable there:
+  # the versions are ours, in our published artifact, and no bump on the consumer's side can move them.
+  # The runtime constraints (concurrent-ruby >= 1.2, json >= 2.1.0, jwt >= 2.7) are open-ended, so
+  # consumers already resolve their own versions and lose nothing by not receiving this file.
   s.files = Dir.chdir(File.expand_path(__dir__)) do
-    `git ls-files -z`.split("\x0").reject { |f| f.match(%r{\A(?:test|spec|features|vendor)/}) }
+    `git ls-files -z`.split("\x0").reject do |f|
+      f.match(%r{\A(?:test|spec|features|vendor)/}) || f == "Gemfile.lock"
+    end
   end
 
   s.require_paths = ["lib"]
