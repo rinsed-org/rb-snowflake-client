@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [1.6.1] - 2026-08-18
+### Security
+- Bumped `json` to patch a format-string injection CVE (#169)
+- Bumped `concurrent-ruby` and `jwt` to patch CVEs (#182)
+### Changed
+- `Gemfile.lock` is no longer shipped inside the published gem. It has no function in a
+  consumer's dependency resolution, but image scanners read it as a manifest and reported our
+  development pins as CRITICAL findings against every consumer (#186)
+
 ## [1.6.0] - 2026-04-13
 ### Added
 - Support for passing a passphrase when using an encrypted private key for JWT authentication (#166)
