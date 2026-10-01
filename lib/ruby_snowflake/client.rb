@@ -300,12 +300,12 @@ module RubySnowflake
       end
 
       def retrieve_result_set(query_start_time, query, response, streaming, query_timeout)
-        json_body = JSON.parse(response.body, JSON_PARSE_OPTIONS)
+        json_body = JSON.parse(response.body, **JSON_PARSE_OPTIONS)
         statement_handle = json_body["statementHandle"]
 
         if response.code == POLLING_RESPONSE_CODE
           result_response = poll_for_completion_or_timeout(query_start_time, query, statement_handle, query_timeout)
-          json_body = JSON.parse(result_response.body, JSON_PARSE_OPTIONS)
+          json_body = JSON.parse(result_response.body, **JSON_PARSE_OPTIONS)
         end
 
         num_threads = number_of_threads_to_use(json_body["resultSetMetaData"]["partitionInfo"].size)
@@ -331,7 +331,7 @@ module RubySnowflake
         end
 
         partition_json = {}
-        bm = Benchmark.measure { partition_json = JSON.parse(partition_response.body, JSON_PARSE_OPTIONS) }
+        bm = Benchmark.measure { partition_json = JSON.parse(partition_response.body, **JSON_PARSE_OPTIONS) }
         logger.debug { "JSON parsing took: #{bm.real}" }
         partition_data = partition_json["data"]
 
