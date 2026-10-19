@@ -6,10 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
+
+## [1.6.2] - 2026-10-19
 ### Fixed
 - Compatibility with `json` 3.0, where `JSON.parse` options are keyword-only: every query raised
   `ArgumentError: wrong number of arguments (given 2, expected 1)` because the parse options were passed
-  as a positional Hash. They're now passed as keywords, which works on `json` 2.x and 3.x.
+  as a positional Hash. They're now passed as keywords, which works on `json` 2.x and 3.x. (#191)
 
 ## [1.6.1] - 2026-08-18
 ### Security
