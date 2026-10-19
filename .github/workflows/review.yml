@@ -1,0 +1,67 @@
+# Copy this file - together with examples/review-manual-request.yml and examples/review-dismiss-stale.yml -
+# into a consuming repo's .github/workflows/. Arby (rinsed-review-bot) then reviews every PR. Per-repo
+# review instructions go in the repo's CODE_REVIEW.md / CLAUDE.md - no workflow edits needed to customize
+# what gets flagged.
+#
+# The job itself (runner, timeout, permissions, secrets) is defined once in the bot's repo as a reusable
+# workflow; `secrets: inherit` hands it the org secrets it needs, so nothing is listed here. This file owns
+# only the trigger, the draft gate and the concurrency rule. Runs on the base branch (pull_request_target),
+# so a PR can't edit the workflow that reviews it.
+name: Review
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+# Read-only token: the review only reads the PR as data. The only credential that can write is Arby's own
+# PAT (org secret RINSED_REVIEW_BOT_TOKEN), and the bot uses it solely to post the review.
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+
+jobs:
+  # Reported on the PR as "review / Arby Review". Don't make it a required check - an Arby outage must not
+  # block merges. The required check is review-dismiss-stale.yml's job instead (see the README's "Setup").
+  review:
+    # Drafts skip - to review a draft anyway, request a review from Arby (review-manual-request.yml).
+    if: github.event.pull_request.draft == false
+    # One review per PR at a time, shared with review-manual-request.yml: the newest run cancels older
+    # in-flight ones. Job-level so skipped runs stay out of the group.
+    concurrency:
+      group: arby-review-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    uses: rinsed-org/review-bot-workflows/.github/workflows/arby-review.yml@v3
+    # Every secret the bot needs is an org secret, read inside the reusable workflow. Nothing to list.
+    secrets: inherit
+    with:
+      # --- Optional inputs, shown with their defaults. Keep them identical in review-manual-request.yml. ---
+
+      # STRONGLY RECOMMENDED. Only these authors get a real verdict (approve / request changes); every
+      # other author gets a comment only. A comma/newline list of teams (`org/team-slug`) and/or user
+      # logins (e.g. `some-username`). This gate keeps the bot's verdict meaningful - leave it unset and
+      # *any* author is eligible. See the README's trust-model note.
+      limit-approval-to: rinsed-org/development
+
+      # Set to false to make the bot advisory-only: it comments but never approves / requests changes.
+      # approval-enabled: true
+
+      # Severities that block approval (request changes); the rest are posted as advisory comments.
+      blocking-severities: P0,P1
+
+      # Review Dependabot PRs too (skipped by default). Normally set as the repo's ARBY_RUN_FOR_DEPENDABOT
+      # Actions secret or variable (`true`), which the reusable workflow reads on its own; this input
+      # overrides it.
+      # run-for-dependabot: "true"
+
+      # Let Codex count production rows in Snowflake (read-only) to check claims about data. Normally set as
+      # the repo's ARBY_SNOWFLAKE_ENABLED Actions variable (`true`); this input overrides it.
+      # snowflake-enabled: "true"
+
+      # Other repos in this org that Codex may read (read-only, depth 1) to check claims about this repo's
+      # consumers and producers. `owner/repo`, `owner/repo@ref`, or `owner/repo:dir,dir` for only those
+      # directories (one per line when it has dirs). Read with the Arby Reader app's org secrets; see the
+      # README's "Related repositories".
+      # related-repos: |
+      #   rinsed-org/web
+      #   rinsed-org/rinsed-dbt-multiproject:rinsed_macros/macros
