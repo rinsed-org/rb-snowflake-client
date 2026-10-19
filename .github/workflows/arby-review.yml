@@ -45,7 +45,11 @@ jobs:
           GH_TOKEN: ${{ steps.token.outputs.token }}
           REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
-        run: gh workflow run review.yml -R rinsed-org/review-bot-public-runner -f repo="$REPO" -f pr="$PR"
+        run: |
+          # The REST endpoint directly, with an explicit ref: `gh workflow run` would first look up the runner
+          # repo's default branch, which needs Contents read, and this token has only Actions: write.
+          gh api --method POST repos/rinsed-org/review-bot-public-runner/actions/workflows/review.yml/dispatches \
+            -f ref=master -f "inputs[repo]=$REPO" -f "inputs[pr]=$PR"
 
   # A COPY of rinsed-org/review-bot-workflows' dismiss-stale/action.yml, inlined because a public repo can't
   # use that internal action. The two must change together. Its own job, so it stays a cheap check with no
