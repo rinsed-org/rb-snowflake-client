@@ -1,0 +1,92 @@
+# For a PUBLIC repo: copy this one file into its .github/workflows/ instead of review.yml,
+# review-manual-request.yml and review-dismiss-stale.yml. A public repo can't use actions or reusable
+# workflows from rinsed-org/review-bot-workflows (an internal repo), so it doesn't run Arby itself. It asks
+# rinsed-org/review-bot-public-runner (internal) to, by dispatching that repo's review workflow with nothing
+# but this repo's name and the PR number. The runner reads this repo's settings (limit-approval-to,
+# blocking-severities, ...) from its own config file and runs the reusable workflow in cross-repo mode, which
+# reviews this PR in public repo mode and posts the review here as Arby. Per-repo setup: add this repo to the
+# runner's config, then add this file. See the bot's README, "Public repositories".
+#
+# Nothing PR-controlled reaches the dispatch: only github.repository and the PR number, passed through env.
+# No checkout, no PR code. The token is minted from the Arby Dispatcher app (Actions: write, installed only on
+# the runner repo) and scoped to that one repo, so all it can do is start runs there. The run's own red/green
+# status shows in the runner repo; on this PR the result is Arby's review. Manual "re-request Arby" reviews
+# aren't supported here yet: push a commit to get a new review.
+name: Arby review (public repo)
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+# Nothing by default; each job asks for exactly what it needs.
+permissions: {}
+
+jobs:
+  dispatch:
+    name: Request Arby review
+    # Drafts skip, as in review.yml.
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Only the app token is used, so the job's own token needs nothing.
+    permissions: {}
+    steps:
+      - name: Mint a dispatch token
+        id: token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ secrets.ARBY_DISPATCH_CLIENT_ID }}
+          private-key: ${{ secrets.ARBY_DISPATCH_PRIVATE_KEY }}
+          owner: rinsed-org
+          repositories: review-bot-public-runner
+          permission-actions: write
+      - name: Dispatch the review
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: gh workflow run review.yml -R rinsed-org/review-bot-public-runner -f repo="$REPO" -f pr="$PR"
+
+  # A COPY of rinsed-org/review-bot-workflows' dismiss-stale/action.yml, inlined because a public repo can't
+  # use that internal action. The two must change together. Its own job, so it stays a cheap check with no
+  # dependency on Arby, the app or the runner repo: make THIS job ("Dismiss stale Arby approvals") the
+  # required status check, as in review-dismiss-stale.yml. It runs on the job's default token and consumes
+  # nothing PR-controlled beyond the PR number.
+  dismiss:
+    # The required check is keyed on this name; keep it exactly as is.
+    name: Dismiss stale Arby approvals
+    concurrency:
+      group: arby-dismiss-stale-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Dismiss stale review-bot approvals
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          BOT_LOGIN: rinsed-review-bot
+        run: |
+          set -euo pipefail
+          if [ -z "$PR" ]; then
+            echo "::error::No pull request in the event payload — call this from a pull_request_target workflow."
+            exit 1
+          fi
+          # Skip approvals for the PR's current head: the review workflow runs on the same event with no
+          # ordering, so a delayed dismiss job must not kill an approval Arby already gave the new commits. The
+          # head is fetched at execution time (not from the event payload) so a run delayed past a newer push
+          # can't dismiss that newer push's approval either.
+          head_sha=$(gh api "repos/$REPO/pulls/$PR" --jq .head.sha)
+          gh api "repos/$REPO/pulls/$PR/reviews" --paginate \
+            --jq ".[] | select(.user.login == \"$BOT_LOGIN\" and .state == \"APPROVED\"
+                              and .commit_id != \"$head_sha\") | .id" |
+          while read -r review_id; do
+            echo "Dismissing stale approval (review $review_id)"
+            # The API rejects blank (or whitespace-only) messages, so this is as terse as GitHub allows.
+            gh api --method PUT "repos/$REPO/pulls/$PR/reviews/$review_id/dismissals" \
+              --field message="Dismissing stale review" --field event="DISMISS"
+          done
