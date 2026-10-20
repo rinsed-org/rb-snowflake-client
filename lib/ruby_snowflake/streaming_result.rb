@@ -43,8 +43,9 @@ module RubySnowflake
           data[index] = :finished
         end
       ensure
+        # No wait: an early exit shouldn't block on a prefetch it won't read. The worker finishes
+        # it and exits; killing it could return a connection mid-response.
         thread_pool.shutdown
-        thread_pool.wait_for_termination
       end
     end
 
