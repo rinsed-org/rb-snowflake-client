@@ -11,8 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `*_OUTPUT_FORMAT` parameters raise `ArgumentError`, since they change the encodings the client parses (#163)
 ### Fixed
 - Results no longer leak threads per query, and stopping a stream early doesn't wait for a prefetch (#163)
-- A failed partition fetch always raises (it could yield a `nil` partition before); non-library errors are
-  wrapped in `ConnectionStarvedError` (#163)
+- A failed partition fetch always raises (it could yield a `nil` partition before): pool timeouts as
+  `ConnectionStarvedError`, other non-library errors as `RubySnowflake::Error` with the original as `cause`
+  (#163, thanks Justin Leger)
+- A failed fetch or an interrupt cancels the partition fetches that haven't started (thanks Justin Leger)
 
 ## [1.6.2] - 2026-10-19
 ### Fixed
