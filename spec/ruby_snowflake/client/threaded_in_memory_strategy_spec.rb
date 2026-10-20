@@ -39,6 +39,15 @@ RSpec.describe RubySnowflake::Client::ThreadedInMemoryStrategy do
     }
   end
 
+  it "wraps other errors in a plain RubySnowflake::Error" do
+    expect do
+      result { raise JSON::ParserError, "unexpected token" }
+    end.to raise_error(RubySnowflake::Error, /JSON::ParserError: unexpected token/) { |error|
+      expect(error).not_to be_a(RubySnowflake::ConnectionStarvedError)
+      expect(error.cause).to be_a(JSON::ParserError)
+    }
+  end
+
   it "raises RubySnowflake errors as is" do
     failure = RubySnowflake::BadResponseError.new("Bad response!")
 
