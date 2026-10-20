@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
+### Added
+- `query` accepts `parameters:` for Snowflake session parameters such as `QUERY_TAG` (#163, thanks @mani-coder)
+- `*_OUTPUT_FORMAT` parameters raise `ArgumentError`, since they change the encodings the client parses (#163)
+### Fixed
+- Streaming results no longer leak a thread per query, and stopping early doesn't wait for a prefetch (#163)
+- A failed partition fetch always raises (it could yield a `nil` partition before); non-library errors are
+  wrapped in `ConnectionStarvedError` (#163)
 
 ## [1.6.2] - 2026-10-19
 ### Fixed
