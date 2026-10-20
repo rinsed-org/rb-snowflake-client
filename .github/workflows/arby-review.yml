@@ -10,13 +10,18 @@
 # Nothing PR-controlled reaches the dispatch: only github.repository and the PR number, passed through env.
 # No checkout, no PR code. The token is minted from the Arby Dispatcher app (Actions: write, installed only on
 # the runner repo) and scoped to that one repo, so all it can do is start runs there. The run's own red/green
-# status shows in the runner repo; on this PR the result is Arby's review. Manual "re-request Arby" reviews
-# aren't supported here yet: push a commit to get a new review.
+# status shows in the runner repo; on this PR the result is Arby's review.
+#
+# Requesting a review: someone with write access requests `rinsed-review-bot` as a reviewer (also on drafts,
+# and also on a PR by an author limit-approval-to doesn't cover, such as an outside contributor's fork PR,
+# which is otherwise not reviewed). The dispatch still carries only the repo and PR number; the runner checks
+# the PR itself for a pending request for Arby made by someone with write access. Such a review is
+# comment-only unless limit-approval-to covers the author.
 name: Arby review (public repo)
 
 on:
   pull_request_target:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, synchronize, reopened, ready_for_review, review_requested]
 
 # Nothing by default; each job asks for exactly what it needs.
 permissions: {}
@@ -24,8 +29,11 @@ permissions: {}
 jobs:
   dispatch:
     name: Request Arby review
-    # Drafts skip, as in review.yml.
-    if: github.event.pull_request.draft == false
+    # A request aimed at Arby itself (a team request names no requested_reviewer), drafts included; otherwise
+    # non-drafts only, as in review.yml.
+    if: >-
+      (github.event.action == 'review_requested' && github.event.requested_reviewer.login == 'rinsed-review-bot')
+      || (github.event.action != 'review_requested' && github.event.pull_request.draft == false)
     runs-on: ubuntu-latest
     timeout-minutes: 5
     # Only the app token is used, so the job's own token needs nothing.
@@ -59,6 +67,10 @@ jobs:
   dismiss:
     # The required check is keyed on this name; keep it exactly as is.
     name: Dismiss stale Arby approvals
+    # Runs on review requests too, though they add no commits. Skipping it there would report a newer,
+    # skipped check, which satisfies the required check even while the dismissal for the latest push failed
+    # or is still running. A request that cancels an in-flight run below is harmless: the new run reads the
+    # current head itself and dismisses everything the cancelled one would have.
     concurrency:
       group: arby-dismiss-stale-${{ github.event.pull_request.number }}
       cancel-in-progress: true
