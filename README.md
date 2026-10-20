@@ -183,7 +183,7 @@ The ones that are useful here are:
 
 A few others need care:
 
-- The `*_OUTPUT_FORMAT` parameters raise an `ArgumentError`: they change the value encodings the client parses.
+- The `*_OUTPUT_FORMAT` parameters raise an `ArgumentError`: the client parses Snowflake's default date, time and timestamp encodings, and returns binary values in its default hex.
 - `MULTI_STATEMENT_COUNT` lets you run several statements in one query, but the result is only the parent statement's summary, not each statement's rows.
 - `ROWS_PER_RESULTSET` caps the number of rows returned.
 

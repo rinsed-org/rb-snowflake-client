@@ -72,7 +72,7 @@ module RubySnowflake
     VALID_RESPONSE_CODES = %w(200 202).freeze
     POLLING_RESPONSE_CODE = "202"
     POLLING_INTERVAL = 2 # seconds
-    # Row parses Snowflake's default value encodings, which *_OUTPUT_FORMAT parameters change
+    # Row parses Snowflake's default date and time encodings and returns binary as its default hex
     OUTPUT_FORMAT_PARAMETER = /_OUTPUT_FORMAT\z/i
 
     # can't be set after initialization
@@ -213,7 +213,7 @@ module RubySnowflake
 
         raise ArgumentError,
               "The #{output_format_key} parameter is not supported: this client parses Snowflake's default " \
-              "encodings for date, time, timestamp and binary values, which output format parameters change"
+              "date, time and timestamp encodings, and returns binary values in its default hex"
       end
 
       def connection_pool

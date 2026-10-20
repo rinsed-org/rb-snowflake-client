@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Unreleased
 ### Added
 - `query` accepts `parameters:` for Snowflake session parameters such as `QUERY_TAG` (#163, thanks @mani-coder)
-- `*_OUTPUT_FORMAT` parameters raise `ArgumentError`, since they change the encodings the client parses (#163)
+- `*_OUTPUT_FORMAT` parameters raise `ArgumentError`: the client parses Snowflake's default date and time
+  encodings, and returns binary values in its default hex (#197)
 ### Fixed
 - Results no longer leak threads per query, and stopping a stream early doesn't wait for a prefetch (#163)
 - A failed partition fetch always raises (it could yield a `nil` partition before): pool timeouts as
