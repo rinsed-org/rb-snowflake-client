@@ -27,4 +27,5 @@ module RubySnowflake
       end
     end
   end
+  private_constant :PartitionFuture
 end

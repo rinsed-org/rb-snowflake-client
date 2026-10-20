@@ -74,6 +74,7 @@ module RubySnowflake
     POLLING_INTERVAL = 2 # seconds
     # Row parses Snowflake's default date and time encodings and returns binary as its default hex
     OUTPUT_FORMAT_PARAMETER = /_OUTPUT_FORMAT\z/i
+    private_constant :OUTPUT_FORMAT_PARAMETER
 
     # can't be set after initialization
     attr_reader :connection_timeout, :max_connections, :logger, :max_threads_per_query, :thread_scale_factor, :http_retries, :query_timeout, :default_role
