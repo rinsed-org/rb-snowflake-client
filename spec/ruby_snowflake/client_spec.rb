@@ -210,6 +210,24 @@ RSpec.describe RubySnowflake::Client do
         result = client.query(query)
         expect(result).to be_a(RubySnowflake::Result)
       end
+
+      it "rejects output format parameters before sending a request" do
+        expect_any_instance_of(Net::HTTP).not_to receive(:request)
+
+        ["DATE_OUTPUT_FORMAT", :timestamp_ntz_output_format].each do |key|
+          expect do
+            client.query(query, parameters: { "QUERY_TAG" => "my_custom_tag", key => "YYYY-MM-DD" })
+          end.to raise_error(ArgumentError, /#{key}/)
+        end
+      end
+
+      it "rejects parameters that aren't a Hash before sending a request" do
+        expect_any_instance_of(Net::HTTP).not_to receive(:request)
+
+        expect do
+          client.query(query, parameters: "QUERY_TAG=my_custom_tag")
+        end.to raise_error(ArgumentError, /must be a Hash/)
+      end
     end
 
     context "when the query errors" do

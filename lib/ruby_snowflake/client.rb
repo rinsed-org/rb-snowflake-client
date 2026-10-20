@@ -71,6 +71,8 @@ module RubySnowflake
     VALID_RESPONSE_CODES = %w(200 202).freeze
     POLLING_RESPONSE_CODE = "202"
     POLLING_INTERVAL = 2 # seconds
+    # Row parses Snowflake's default value encodings, which *_OUTPUT_FORMAT parameters change
+    OUTPUT_FORMAT_PARAMETER = /_OUTPUT_FORMAT\z/i
 
     # can't be set after initialization
     attr_reader :connection_timeout, :max_connections, :logger, :max_threads_per_query, :thread_scale_factor, :http_retries, :query_timeout, :default_role
@@ -156,6 +158,7 @@ module RubySnowflake
       database ||= @default_database
       role ||= @default_role
       query_timeout ||= @query_timeout
+      validate_parameters!(parameters)
 
       with_instrumentation({ database:, schema:, warehouse:, query_name: }) do
         query_start_time = Time.now.to_i
@@ -199,6 +202,18 @@ module RubySnowflake
     private_class_method :env_option
 
     private
+      def validate_parameters!(parameters)
+        return if parameters.nil?
+        raise ArgumentError, "parameters must be a Hash, got #{parameters.class}" unless parameters.is_a?(Hash)
+
+        output_format_key = parameters.keys.find { |key| key.to_s.match?(OUTPUT_FORMAT_PARAMETER) }
+        return if output_format_key.nil?
+
+        raise ArgumentError,
+              "The #{output_format_key} parameter is not supported: this client parses Snowflake's default " \
+              "encodings for date, time, timestamp and binary values, which output format parameters change"
+      end
+
       def connection_pool
         @connection_pool ||= ConnectionPool.new(size: @max_connections, timeout: @connection_timeout) do
           HttpConnectionWrapper.new(hostname, port).start
