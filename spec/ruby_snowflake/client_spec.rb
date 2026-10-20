@@ -193,7 +193,7 @@ RSpec.describe RubySnowflake::Client do
       it "does not include parameters when nil" do
         allow_any_instance_of(Net::HTTP).to receive(:request) do |instance, request|
           request_body = JSON.parse(request.body)
-          expect(request_body["parameters"]).to be_nil
+          expect(request_body).not_to have_key("parameters")
 
           response = Net::HTTPSuccess.new("1.1", "200", "OK")
           allow(response).to receive(:body).and_return({

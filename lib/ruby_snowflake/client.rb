@@ -172,9 +172,10 @@ module RubySnowflake
             "statement" => query,
             "bindings" => bindings,
             "role" => role,
-            "timeout" => query_timeout,
-            "parameters" => parameters
+            "timeout" => query_timeout
           }
+          # Omit rather than send null, which Snowflake doesn't document for parameters
+          request_body["parameters"] = parameters unless parameters.nil?
 
           response = request_with_auth_and_headers(
             connection,
