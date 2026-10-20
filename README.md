@@ -291,3 +291,4 @@ Please fork and create a pull request. Getting tests to run will be the most lab
 # Links:
 - snowflake API reference https://docs.snowflake.com/en/developer-guide/sql-api/reference
 - snowflake authentication docs: https://docs.snowflake.com/en/developer-guide/sql-api/authenticating
+
