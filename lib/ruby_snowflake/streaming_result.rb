@@ -26,7 +26,7 @@ module RubySnowflake
           end
 
           if data[index].is_a? Concurrent::Future
-            data[index] = data[index].value! # wait for it to finish and propagate errors
+            data[index] = PartitionFuture.value!(data[index]) # wait for it to finish and propagate errors
           end
 
           data[index].each do |row|

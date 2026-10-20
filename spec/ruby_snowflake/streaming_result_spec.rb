@@ -60,10 +60,12 @@ RSpec.describe RubySnowflake::StreamingResult do
     expect(thread_pool).to have_received(:shutdown)
   end
 
-  it "propagates prefetch failures and shuts down the pool" do
+  it "wraps prefetch failures in a ConnectionStarvedError and shuts down the pool" do
     expect do
-      build_result { raise "partition failed" }.to_a
-    end.to raise_error("partition failed")
+      build_result { raise ConnectionPool::TimeoutError, "no connection" }.to_a
+    end.to raise_error(RubySnowflake::ConnectionStarvedError, /Rejection reason: no connection/) { |error|
+      expect(error.cause).to be_a(ConnectionPool::TimeoutError)
+    }
 
     expect(thread_pool).to have_received(:shutdown)
   end

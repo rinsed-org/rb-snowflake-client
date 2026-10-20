@@ -24,6 +24,7 @@ require_relative "client/key_pair_jwt_auth_manager"
 require_relative "client/single_thread_in_memory_strategy"
 require_relative "client/streaming_result_strategy"
 require_relative "client/threaded_in_memory_strategy"
+require_relative "partition_future"
 require_relative "result"
 require_relative "streaming_result"
 
