@@ -67,11 +67,10 @@ jobs:
   dismiss:
     # The required check is keyed on this name; keep it exactly as is.
     name: Dismiss stale Arby approvals
-    # Not on review requests: they add no commits, so there is nothing new to dismiss, and the run for the
-    # event that set this head already reported. Skipped by its job-level `if`, the job stays out of the
-    # concurrency group below, so a burst of requests can't cancel an in-flight dismissal after a push; and
-    # a skipped job satisfies a required check, so the PR is never left waiting on it.
-    if: github.event.action != 'review_requested'
+    # Runs on review requests too, though they add no commits. Skipping it there would report a newer,
+    # skipped check, which satisfies the required check even while the dismissal for the latest push failed
+    # or is still running. A request that cancels an in-flight run below is harmless: the new run reads the
+    # current head itself and dismisses everything the cancelled one would have.
     concurrency:
       group: arby-dismiss-stale-${{ github.event.pull_request.number }}
       cancel-in-progress: true
