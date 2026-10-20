@@ -17,6 +17,15 @@ RSpec.describe RubySnowflake::Client::ThreadedInMemoryStrategy do
     described_class.result(statement_json_body, retrieve_proc, 2)
   end
 
+  it "shuts down its thread pool" do
+    thread_pool = Concurrent::FixedThreadPool.new(2)
+    allow(Concurrent::FixedThreadPool).to receive(:new).with(2).and_return(thread_pool)
+
+    result { |index| [["partition #{index}"]] }
+
+    expect(thread_pool.shuttingdown? || thread_pool.shutdown?).to be(true)
+  end
+
   it "raises a ConnectionStarvedError when a partition fetch fails after the strategy starts waiting for it" do
     expect do
       result do |index|
