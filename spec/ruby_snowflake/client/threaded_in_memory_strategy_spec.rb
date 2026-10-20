@@ -26,6 +26,28 @@ RSpec.describe RubySnowflake::Client::ThreadedInMemoryStrategy do
     expect(thread_pool.shuttingdown? || thread_pool.shutdown?).to be(true)
   end
 
+  it "cancels the fetches that haven't started when it's interrupted" do
+    thread_pool = Concurrent::FixedThreadPool.new(1)
+    allow(Concurrent::FixedThreadPool).to receive(:new).with(1).and_return(thread_pool)
+    statement_json_body["resultSetMetaData"]["partitionInfo"] = [{}, {}, {}, {}]
+    fetched = Queue.new
+    release_fetch = Queue.new
+
+    consumer = Thread.new do
+      described_class.result(statement_json_body, ->(index) { fetched << index; release_fetch.pop }, 1)
+    end
+    consumer.report_on_exception = false
+
+    expect(fetched.pop).to eq(1) # the only worker is now blocked in partition 1's fetch
+    Thread.pass until consumer.status == "sleep" # every fetch is queued and the consumer is waiting
+    consumer.raise("interrupted")
+    expect { consumer.join }.to raise_error("interrupted")
+    3.times { release_fetch << [["partition"]] } # enough for every fetch, should any run
+
+    expect(thread_pool.wait_for_termination(5)).to be(true)
+    expect(fetched.size).to eq(0)
+  end
+
   it "raises a ConnectionStarvedError when a partition fetch fails after the strategy starts waiting for it" do
     expect do
       result do |index|

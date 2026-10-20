@@ -9,19 +9,19 @@ module RubySnowflake
         result[0] = statement_json_body["data"]
 
         thread_pool = Concurrent::FixedThreadPool.new(num_threads)
+        futures = []
         begin
-          partitions
-            .each_with_index.map do |partition, index|
-              next if index == 0 # already have the first partition
-              [index, Concurrent::Future.execute(executor: thread_pool) { retreive_proc.call(index) }]
-            end
-            .each do |entry|
-              next if entry.nil? # 0th index
+          partitions.each_index do |index|
+            next if index == 0 # already have the first partition
+            futures << [index, Concurrent::Future.execute(executor: thread_pool) { retreive_proc.call(index) }]
+          end
 
-              index, future = entry
-              result[index] = PartitionFuture.value!(future)
-            end
+          futures.each do |index, future|
+            result[index] = PartitionFuture.value!(future)
+          end
         ensure
+          # On a failure or interrupt, skip the fetches that haven't started
+          futures.each { |_index, future| future.cancel }
           thread_pool.shutdown # no wait: in-flight fetches finish and return their connections
         end
         result
