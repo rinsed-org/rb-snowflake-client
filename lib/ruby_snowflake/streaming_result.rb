@@ -2,6 +2,7 @@
 
 require "concurrent"
 
+require_relative "partition_future"
 require_relative "result"
 
 module RubySnowflake

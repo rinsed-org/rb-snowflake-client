@@ -1,5 +1,9 @@
 # frozen_string_literal: true
 
+require "connection_pool"
+
+require_relative "errors"
+
 module RubySnowflake
   module PartitionFuture
     # Waits for a partition fetch. RubySnowflake errors pass through, pool timeouts become

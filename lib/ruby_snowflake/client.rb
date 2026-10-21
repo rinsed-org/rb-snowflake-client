@@ -19,6 +19,7 @@ rescue LoadError
   # This isn't required
 end
 
+require_relative "errors"
 require_relative "client/http_connection_wrapper"
 require_relative "client/key_pair_jwt_auth_manager"
 require_relative "client/single_thread_in_memory_strategy"
@@ -29,24 +30,6 @@ require_relative "result"
 require_relative "streaming_result"
 
 module RubySnowflake
-  class Error < StandardError
-    def initialize(details)
-      @details = details
-    end
-
-    def message
-      @details.to_s
-    end
-  end
-
-  class BadResponseError < Error ; end
-  class ConnectionError < Error ; end
-  class ConnectionStarvedError < Error ; end
-  class MissingConfig < Error ; end
-  class RetryableBadResponseError < Error ; end
-  class RequestError < Error ; end
-  class QueryTimeoutError < Error ;  end
-
   class Client
     DEFAULT_LOGGER = Logger.new(STDOUT)
     DEFAULT_LOG_LEVEL = Logger::INFO

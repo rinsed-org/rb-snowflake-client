@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "open3"
 require "rb_snowflake_client"
 
 RSpec.describe RubySnowflake::StreamingResult do
@@ -68,5 +69,28 @@ RSpec.describe RubySnowflake::StreamingResult do
     }
 
     expect(thread_pool).to have_received(:shutdown)
+  end
+
+  it "works when required on its own" do
+    script = <<~RUBY
+      require "ruby_snowflake/streaming_result"
+      row_types = [{"name" => "value", "type" => "text", "scale" => 0, "precision" => 0}]
+
+      result = RubySnowflake::StreamingResult.new(2, row_types, ->(_) { [["second"]] })
+      result[0] = [["first"]]
+      puts result.map { |row| row["value"] }.join(",")
+
+      result = RubySnowflake::StreamingResult.new(2, row_types, ->(_) { raise ConnectionPool::TimeoutError })
+      result[0] = [["first"]]
+      begin
+        result.to_a
+      rescue RubySnowflake::ConnectionStarvedError
+        puts "starved"
+      end
+    RUBY
+
+    output, status = Open3.capture2e(RbConfig.ruby, "-Ilib", "-rbundler/setup", "-e", script)
+
+    expect([output, status.success?]).to eq(["first,second\nstarved\n", true])
   end
 end
