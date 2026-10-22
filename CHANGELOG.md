@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
+
+## [1.7.0] - 2026-10-22
 ### Added
 - `query` accepts `parameters:` for Snowflake session parameters such as `QUERY_TAG` (#163, thanks Elayamani K)
 - `*_OUTPUT_FORMAT` parameters raise `ArgumentError`: the client parses Snowflake's default date and time
@@ -21,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A failed partition fetch always raises; it could yield a `nil` partition before (#197, thanks Justin Léger)
 - A failed fetch or an interrupt cancels the partition fetches that haven't started (#197, thanks Justin Léger)
 - No longer requires `benchmark`, which isn't a default gem from Ruby 4.0, so loading the client doesn't need it
-  in the bundle
+  in the bundle (#198)
 
 ## [1.6.2] - 2026-10-19
 ### Fixed
