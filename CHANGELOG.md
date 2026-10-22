@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Threaded in-memory results no longer leak their threads (#197)
 - A failed partition fetch always raises; it could yield a `nil` partition before (#197, thanks Justin Léger)
 - A failed fetch or an interrupt cancels the partition fetches that haven't started (#197, thanks Justin Léger)
+- No longer requires `benchmark`, which isn't a default gem from Ruby 4.0, so loading the client doesn't need it
+  in the bundle
 
 ## [1.6.2] - 2026-10-19
 ### Fixed

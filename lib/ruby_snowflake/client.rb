@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "base64"
-require "benchmark"
 require "bigdecimal"
 require "concurrent"
 require "connection_pool"
@@ -227,9 +226,10 @@ module RubySnowflake
                             sleep: lambda {|n| 2**n }, # 1, 2, 4, 8, etc
                             on: [RetryableBadResponseError, OpenSSL::SSL::SSLError],
                             log_method: retryable_log_method) do
-          response = nil
-          bm = Benchmark.measure { response = connection.request(request) }
-          logger.debug { "HTTP Request time: #{bm.real}" }
+          started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+          response = connection.request(request)
+          elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at
+          logger.debug { "HTTP Request time: #{elapsed}" }
           raise_on_bad_response(response)
           response
         end
@@ -332,9 +332,10 @@ module RubySnowflake
           )
         end
 
-        partition_json = {}
-        bm = Benchmark.measure { partition_json = JSON.parse(partition_response.body, **JSON_PARSE_OPTIONS) }
-        logger.debug { "JSON parsing took: #{bm.real}" }
+        started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        partition_json = JSON.parse(partition_response.body, **JSON_PARSE_OPTIONS)
+        elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at
+        logger.debug { "JSON parsing took: #{elapsed}" }
         partition_data = partition_json["data"]
 
         partition_data
