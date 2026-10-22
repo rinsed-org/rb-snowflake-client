@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "open3"
 require "rb_snowflake_client"
 
 RSpec.describe RubySnowflake::StreamingResult do
@@ -11,7 +12,6 @@ RSpec.describe RubySnowflake::StreamingResult do
   before do
     allow(Concurrent::FixedThreadPool).to receive(:new).with(1).and_return(thread_pool)
     allow(thread_pool).to receive(:shutdown).and_call_original
-    allow(thread_pool).to receive(:wait_for_termination).and_call_original
   end
 
   def build_result(&retrieve_proc)
@@ -25,14 +25,32 @@ RSpec.describe RubySnowflake::StreamingResult do
 
     expect(values).to eq(%w[first second])
     expect(thread_pool).to have_received(:shutdown)
-    expect(thread_pool).to have_received(:wait_for_termination)
   end
 
-  it "shuts down its prefetch pool when the consumer stops early" do
-    build_result { [["second"]] }.each { break }
+  it "doesn't wait for an in-flight prefetch when the consumer stops early" do
+    prefetch_started = Queue.new
+    release_prefetch = Queue.new
+    result = build_result do
+      prefetch_started << true
+      release_prefetch.pop
+      [["second"]]
+    end
 
-    expect(thread_pool).to have_received(:shutdown)
-    expect(thread_pool).to have_received(:wait_for_termination)
+    consumer = Thread.new do
+      result.each do
+        prefetch_started.pop # the prefetch is now blocked on release_prefetch
+        break
+      end
+    end
+
+    begin
+      expect(consumer.join(5)).not_to be_nil
+      expect(thread_pool).to be_shuttingdown
+    ensure
+      release_prefetch << true
+    end
+
+    expect(thread_pool.wait_for_termination(5)).to be(true)
   end
 
   it "shuts down its prefetch pool when the consumer raises" do
@@ -41,15 +59,38 @@ RSpec.describe RubySnowflake::StreamingResult do
     end.to raise_error("consumer failed")
 
     expect(thread_pool).to have_received(:shutdown)
-    expect(thread_pool).to have_received(:wait_for_termination)
   end
 
-  it "propagates prefetch failures and shuts down the pool" do
+  it "wraps prefetch failures in a ConnectionStarvedError and shuts down the pool" do
     expect do
-      build_result { raise "partition failed" }.to_a
-    end.to raise_error("partition failed")
+      build_result { raise ConnectionPool::TimeoutError, "no connection" }.to_a
+    end.to raise_error(RubySnowflake::ConnectionStarvedError, /Rejection reason: no connection/) { |error|
+      expect(error.cause).to be_a(ConnectionPool::TimeoutError)
+    }
 
     expect(thread_pool).to have_received(:shutdown)
-    expect(thread_pool).to have_received(:wait_for_termination)
+  end
+
+  it "works when required on its own" do
+    script = <<~RUBY
+      require "ruby_snowflake/streaming_result"
+      row_types = [{"name" => "value", "type" => "text", "scale" => 0, "precision" => 0}]
+
+      result = RubySnowflake::StreamingResult.new(2, row_types, ->(_) { [["second"]] })
+      result[0] = [["first"]]
+      puts result.map { |row| row["value"] }.join(",")
+
+      result = RubySnowflake::StreamingResult.new(2, row_types, ->(_) { raise ConnectionPool::TimeoutError })
+      result[0] = [["first"]]
+      begin
+        result.to_a
+      rescue RubySnowflake::ConnectionStarvedError
+        puts "starved"
+      end
+    RUBY
+
+    output, status = Open3.capture2e(RbConfig.ruby, "-Ilib", "-rbundler/setup", "-e", script)
+
+    expect([output, status.success?]).to eq(["first,second\nstarved\n", true])
   end
 end

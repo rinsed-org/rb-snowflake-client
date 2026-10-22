@@ -19,33 +19,17 @@ rescue LoadError
   # This isn't required
 end
 
+require_relative "errors"
 require_relative "client/http_connection_wrapper"
 require_relative "client/key_pair_jwt_auth_manager"
 require_relative "client/single_thread_in_memory_strategy"
 require_relative "client/streaming_result_strategy"
 require_relative "client/threaded_in_memory_strategy"
+require_relative "partition_future"
 require_relative "result"
 require_relative "streaming_result"
 
 module RubySnowflake
-  class Error < StandardError
-    def initialize(details)
-      @details = details
-    end
-
-    def message
-      @details.to_s
-    end
-  end
-
-  class BadResponseError < Error ; end
-  class ConnectionError < Error ; end
-  class ConnectionStarvedError < Error ; end
-  class MissingConfig < Error ; end
-  class RetryableBadResponseError < Error ; end
-  class RequestError < Error ; end
-  class QueryTimeoutError < Error ;  end
-
   class Client
     DEFAULT_LOGGER = Logger.new(STDOUT)
     DEFAULT_LOG_LEVEL = Logger::INFO
@@ -71,6 +55,9 @@ module RubySnowflake
     VALID_RESPONSE_CODES = %w(200 202).freeze
     POLLING_RESPONSE_CODE = "202"
     POLLING_INTERVAL = 2 # seconds
+    # Row parses Snowflake's default date and time encodings and returns binary as its default hex
+    OUTPUT_FORMAT_PARAMETER = /_OUTPUT_FORMAT\z/i
+    private_constant :OUTPUT_FORMAT_PARAMETER
 
     # can't be set after initialization
     attr_reader :connection_timeout, :max_connections, :logger, :max_threads_per_query, :thread_scale_factor, :http_retries, :query_timeout, :default_role
@@ -156,6 +143,7 @@ module RubySnowflake
       database ||= @default_database
       role ||= @default_role
       query_timeout ||= @query_timeout
+      validate_parameters!(parameters)
 
       with_instrumentation({ database:, schema:, warehouse:, query_name: }) do
         query_start_time = Time.now.to_i
@@ -168,9 +156,10 @@ module RubySnowflake
             "statement" => query,
             "bindings" => bindings,
             "role" => role,
-            "timeout" => query_timeout,
-            "parameters" => parameters
+            "timeout" => query_timeout
           }
+          # Omit rather than send null, which Snowflake doesn't document for parameters
+          request_body["parameters"] = parameters unless parameters.nil?
 
           response = request_with_auth_and_headers(
             connection,
@@ -199,6 +188,18 @@ module RubySnowflake
     private_class_method :env_option
 
     private
+      def validate_parameters!(parameters)
+        return if parameters.nil?
+        raise ArgumentError, "parameters must be a Hash, got #{parameters.class}" unless parameters.is_a?(Hash)
+
+        output_format_key = parameters.keys.find { |key| key.to_s.match?(OUTPUT_FORMAT_PARAMETER) }
+        return if output_format_key.nil?
+
+        raise ArgumentError,
+              "The #{output_format_key} parameter is not supported: this client parses Snowflake's default " \
+              "date, time and timestamp encodings, and returns binary values in its default hex"
+      end
+
       def connection_pool
         @connection_pool ||= ConnectionPool.new(size: @max_connections, timeout: @connection_timeout) do
           HttpConnectionWrapper.new(hostname, port).start

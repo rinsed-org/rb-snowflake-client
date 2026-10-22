@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
+### Added
+- `query` accepts `parameters:` for Snowflake session parameters such as `QUERY_TAG` (#163, thanks Elayamani K)
+- `*_OUTPUT_FORMAT` parameters raise `ArgumentError`: the client parses Snowflake's default date and time
+  encodings, and returns binary values in its default hex (#197)
+### Changed
+- A failed partition fetch that isn't a pool timeout raises `RubySnowflake::Error` with the original as `cause`,
+  not the `ConnectionStarvedError` the threaded path raised in 1.6.2: code that rescues only
+  `ConnectionStarvedError` (e.g. to retry) should rescue `RubySnowflake::Error` or check `cause` (#197)
+### Fixed
+- Streaming results no longer leak a thread per query (#163, thanks Nate Berkopec)
+- Stopping a stream early doesn't wait for its prefetch to finish (#197)
+- Threaded in-memory results no longer leak their threads (#197)
+- A failed partition fetch always raises; it could yield a `nil` partition before (#197, thanks Justin Léger)
+- A failed fetch or an interrupt cancels the partition fetches that haven't started (#197, thanks Justin Léger)
 
 ## [1.6.2] - 2026-10-19
 ### Fixed

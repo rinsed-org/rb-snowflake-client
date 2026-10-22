@@ -2,6 +2,7 @@
 
 require "concurrent"
 
+require_relative "partition_future"
 require_relative "result"
 
 module RubySnowflake
@@ -26,7 +27,7 @@ module RubySnowflake
           end
 
           if data[index].is_a? Concurrent::Future
-            data[index] = data[index].value! # wait for it to finish and propagate errors
+            data[index] = PartitionFuture.value!(data[index]) # wait for it to finish and propagate errors
           end
 
           data[index].each do |row|
@@ -43,8 +44,9 @@ module RubySnowflake
           data[index] = :finished
         end
       ensure
+        # No wait: an early exit shouldn't block on a prefetch it won't read. The worker finishes
+        # it and exits; killing it could return a connection mid-response.
         thread_pool.shutdown
-        thread_pool.wait_for_termination
       end
     end
 

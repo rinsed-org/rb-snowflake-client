@@ -174,6 +174,19 @@ client.query(
 )
 ```
 
+The ones that are useful here are:
+
+- `QUERY_TAG`: tags the query, e.g. so you can find it in `QUERY_HISTORY`
+- `TIMEZONE`: sets the session time zone
+- `USE_CACHED_RESULT`: set to `false` to skip Snowflake's result cache
+- `CLIENT_RESULT_CHUNK_SIZE`: the maximum size, in MB, of each chunk of query results
+
+A few others need care:
+
+- The `*_OUTPUT_FORMAT` parameters raise an `ArgumentError`: the client parses Snowflake's default date, time and timestamp encodings, and returns binary values in its default hex.
+- `MULTI_STATEMENT_COUNT` lets you run several statements in one query, but the result is only the parent statement's summary, not each statement's rows.
+- `ROWS_PER_RESULTSET` caps the number of rows returned.
+
 For a full list of available parameters, refer to the Snowflake documentation: https://docs.snowflake.com/en/developer-guide/sql-api/reference
 
 ## Instrumentation
