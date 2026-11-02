@@ -4,15 +4,7 @@ require "rb_snowflake_client"
 require "dotenv/load"
 
 def new_client
-  client = RubySnowflake::Client.new(
-    "https://oza47907.us-east-1.snowflakecomputing.com",
-    ENV["SNOWFLAKE_PRIVATE_KEY"], # set this in your .env file
-    "GBLARLO",
-    "OZA47907",
-    "SNOWFLAKE_CLIENT_TEST",
-    "WEB_TEST_WH",
-    ""
-  )
+  client = RubySnowflake::Client.from_env # set SNOWFLAKE_* in your .env file
   client.logger.level = Logger::DEBUG
   client
 end
@@ -24,7 +16,7 @@ size = 1_000
   bm =
     Benchmark.measure do
     data = new_client.query <<-SQL
-  SELECT * FROM FIVETRAN_DATABASE.RINSED_WEB_PRODUCTION_MAMMOTH.EVENTS limit #{size};
+  SELECT * FROM RUBY_SNOWFLAKE_CLIENT_TESTING.PUBLIC.LARGE_TABLE limit #{size};
   SQL
 
     # access each column on each row, causing type conversion to happen

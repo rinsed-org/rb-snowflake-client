@@ -90,7 +90,7 @@ RSpec.describe RubySnowflake::Client do
     end
 
     context "with lower case warehouse name" do
-      subject(:result) { client.fetch(query, warehouse: "web_data_load_wh") }
+      subject(:result) { client.fetch(query, warehouse: ENV.fetch("SNOWFLAKE_DEFAULT_WAREHOUSE").downcase) }
       let(:query) { "SELECT * from ruby_snowflake_client_testing.public.test_datatypes;" }
 
       it "should work" do
